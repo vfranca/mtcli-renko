@@ -65,3 +65,8 @@ BARS = int(os.getenv(
     "BARS",
     _get_config_value("RENKO", "bars", 500)
 ))
+
+DIGITS = int(os.getenv(
+    "DIGITS",
+    _get_config_value("RENKO", "digits", 2)
+))
