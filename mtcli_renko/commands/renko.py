@@ -15,7 +15,6 @@ from ..conf import (
     BARS
 )
 
-
 log = setup_logger(__name__)
 
 
@@ -50,7 +49,13 @@ log = setup_logger(__name__)
     show_default=True,
     help="Quantidade de candles para cálculo",
 )
-def renko(symbol, brick, timeframe, bars):
+@click.option(
+    "--numerar/--no-numerar",
+    default=False,
+    show_default=True,
+    help="Exibir numeração das linhas",
+)
+def renko(symbol, brick, timeframe, bars, numerar):
     """
     Gera gráfico Renko em modo texto (screen reader friendly).
     """
@@ -62,7 +67,8 @@ def renko(symbol, brick, timeframe, bars):
 
     log.info(
         f"[Renko CLI] symbol={symbol} | brick={brick} | "
-        f"timeframe={tf_enum.label} | bars={bars}"
+        f"timeframe={tf_enum.label} | bars={bars} | "
+        f"numerar={numerar}"
     )
 
     controller = RenkoController(
@@ -73,4 +79,4 @@ def renko(symbol, brick, timeframe, bars):
     )
 
     bricks = controller.executar()
-    exibir_renko(bricks)
+    exibir_renko(bricks, numerar=numerar)

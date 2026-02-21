@@ -8,11 +8,12 @@ import click
 from ..conf import DIGITS
 
 
-def exibir_renko(bricks):
+def exibir_renko(bricks, numerar: bool = False):
     """
     Exibe blocos Renko em formato textual linear.
 
     :param bricks: lista de RenkoBrick
+    :param numerar: se True, exibe índice das linhas
     """
 
     if not bricks:
@@ -24,9 +25,19 @@ def exibir_renko(bricks):
     click.echo()
 
     for i, brick in enumerate(bricks, start=1):
-        click.echo(
-            f"{i} "
-            f"{brick.direction.upper()} "
-            f"{brick.open:.{DIGITS}f} "
-            f"{brick.close:.{DIGITS}f}"
-        )
+
+        if numerar:
+            linha = (
+                f"{i} "
+                f"{brick.direction.upper()} "
+                f"{brick.open:.{DIGITS}f} "
+                f"{brick.close:.{DIGITS}f}"
+            )
+        else:
+            linha = (
+                f"{brick.direction.upper()} "
+                f"{brick.open:.{DIGITS}f} "
+                f"{brick.close:.{DIGITS}f}"
+            )
+
+        click.echo(linha)
