@@ -21,8 +21,8 @@ def exibir_renko(bricks):
 
     for i, brick in enumerate(bricks, start=1):
         print(
-            f"Bloco {i}: "
-            f"Direcao: {brick.direction.upper()} | "
-            f"Abertura: {brick.open:.2f} | "
-            f"Fechamento: {brick.close:.2f}"
+            f"{i} "
+            f"{brick.direction.upper()} "
+            f"{brick.open:.0f} "
+            f"{brick.close:.0f}"
         )
