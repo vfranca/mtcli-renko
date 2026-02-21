@@ -20,6 +20,7 @@ log = setup_logger(__name__)
 
 
 @click.command()
+@click.version_option(package_name="mtcli-renko")
 @click.option(
     "--symbol",
     "-s",
