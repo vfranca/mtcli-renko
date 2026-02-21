@@ -9,12 +9,6 @@ from ..conf import DIGITS
 
 
 def exibir_renko(bricks, numerar: bool = False):
-    """
-    Exibe blocos Renko em formato textual linear.
-
-    :param bricks: lista de RenkoBrick
-    :param numerar: se True, exibe índice das linhas
-    """
 
     if not bricks:
         click.echo("Nenhum bloco Renko gerado.")

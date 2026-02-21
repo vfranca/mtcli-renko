@@ -35,23 +35,11 @@ class RenkoModel:
     """
 
     def __init__(self, symbol: str, brick_size: float):
-        """
-        Inicializa o modelo Renko.
-
-        :param symbol: ativo (ex: WINJ26)
-        :param brick_size: tamanho do bloco em pontos
-        """
         self.symbol = symbol
         self.brick_size = brick_size
 
     def obter_rates(self, timeframe, quantidade: int):
-        """
-        Busca candles via copy_rates_from_pos usando contexto seguro MT5.
 
-        :param timeframe: timeframe MT5
-        :param quantidade: número de candles
-        :return: numpy.ndarray ou None
-        """
         log.info(
             f"[Renko] Solicitando {quantidade} candles de "
             f"{self.symbol} no timeframe {timeframe}"
@@ -59,15 +47,10 @@ class RenkoModel:
 
         with mt5_conexao():
 
-            # Garante que o símbolo está habilitado
             if not mt5.symbol_select(self.symbol, True):
                 erro = mt5.last_error()
-                log.error(
-                    f"[Renko] Falha ao selecionar símbolo "
-                    f"{self.symbol}: {erro}"
-                )
                 raise RuntimeError(
-                    f"Não foi possível selecionar o símbolo {self.symbol}"
+                    f"Não foi possível selecionar o símbolo {self.symbol}: {erro}"
                 )
 
             rates = mt5.copy_rates_from_pos(
@@ -86,63 +69,92 @@ class RenkoModel:
 
             return rates
 
-    def construir_renko(self, rates) -> List[RenkoBrick]:
-        """
-        Constrói blocos Renko baseados em HIGH/LOW para maior precisão.
+    def construir_renko(self, rates, modo="simples") -> List[RenkoBrick]:
 
-        :param rates: numpy.ndarray estruturado retornado pelo MT5
-        :return: lista de RenkoBrick
-        """
+        if modo == "classico":
+            return self._construir_renko_classico(rates)
+
+        return self._construir_renko_simples(rates)
+
+    # -----------------------------
+    # MODO SIMPLES
+    # -----------------------------
+
+    def _construir_renko_simples(self, rates) -> List[RenkoBrick]:
+
         bricks: List[RenkoBrick] = []
 
-        # IMPORTANTE: rates é numpy.ndarray → não usar "if not rates"
-        if rates is None:
-            log.error("[Renko] Rates é None.")
-            return bricks
-
-        if len(rates) < 2:
-            log.warning("[Renko] Histórico insuficiente para gerar Renko.")
+        if rates is None or len(rates) < 2:
             return bricks
 
         last_price = float(rates[0]["close"])
-
-        log.info(
-            f"[Renko] Iniciando construção | "
-            f"brick_size={self.brick_size} | "
-            f"preço inicial={last_price}"
-        )
 
         for rate in rates[1:]:
 
             high = float(rate["high"])
             low = float(rate["low"])
 
-            # Movimento para cima
             while high - last_price >= self.brick_size:
                 novo_close = last_price + self.brick_size
-
-                bricks.append(
-                    RenkoBrick("up", last_price, novo_close)
-                )
-
+                bricks.append(RenkoBrick("up", last_price, novo_close))
                 last_price = novo_close
 
-            # Movimento para baixo
             while last_price - low >= self.brick_size:
                 novo_close = last_price - self.brick_size
-
-                bricks.append(
-                    RenkoBrick("down", last_price, novo_close)
-                )
-
+                bricks.append(RenkoBrick("down", last_price, novo_close))
                 last_price = novo_close
 
-        log.info(f"[Renko] Total de blocos gerados: {len(bricks)}")
+        log.info(f"[Renko Simples] Total de blocos: {len(bricks)}")
+        return bricks
 
-        if not bricks:
-            log.warning(
-                "[Renko] Nenhum bloco gerado. "
-                "Possível brick_size alto ou mercado lateral."
-            )
+    # -----------------------------
+    # MODO CLÁSSICO (REVERSÃO 2x)
+    # -----------------------------
 
+    def _construir_renko_classico(self, rates) -> List[RenkoBrick]:
+
+        bricks: List[RenkoBrick] = []
+
+        if rates is None or len(rates) < 2:
+            return bricks
+
+        last_price = float(rates[0]["close"])
+        direction: Optional[str] = None
+
+        for rate in rates[1:]:
+
+            high = float(rate["high"])
+            low = float(rate["low"])
+
+            # CONTINUAÇÃO DE ALTA
+            if direction in (None, "up"):
+
+                while high - last_price >= self.brick_size:
+                    novo_close = last_price + self.brick_size
+                    bricks.append(RenkoBrick("up", last_price, novo_close))
+                    last_price = novo_close
+                    direction = "up"
+
+                if direction == "up" and last_price - low >= 2 * self.brick_size:
+                    novo_close = last_price - self.brick_size
+                    bricks.append(RenkoBrick("down", last_price, novo_close))
+                    last_price = novo_close
+                    direction = "down"
+
+            # CONTINUAÇÃO DE BAIXA
+            if direction in (None, "down"):
+
+                while last_price - low >= self.brick_size:
+                    novo_close = last_price - self.brick_size
+                    bricks.append(RenkoBrick("down", last_price, novo_close))
+                    last_price = novo_close
+                    direction = "down"
+
+                if direction == "down" and high - last_price >= 2 * self.brick_size:
+                    novo_close = last_price + self.brick_size
+                    bricks.append(RenkoBrick("up", last_price, novo_close))
+                    last_price = novo_close
+                    direction = "up"
+
+        log.info(f"[Renko Classico] Total de blocos: {len(bricks)}")
         return bricks

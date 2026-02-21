@@ -55,7 +55,14 @@ log = setup_logger(__name__)
     show_default=True,
     help="Exibir numeração das linhas",
 )
-def renko(symbol, brick, timeframe, bars, numerar):
+@click.option(
+    "--modo",
+    type=click.Choice(["simples", "classico"], case_sensitive=False),
+    default="simples",
+    show_default=True,
+    help="Modo de construção do Renko",
+)
+def renko(symbol, brick, timeframe, bars, numerar, modo):
     """
     Gera gráfico Renko em modo texto (screen reader friendly).
     """
@@ -68,7 +75,7 @@ def renko(symbol, brick, timeframe, bars, numerar):
     log.info(
         f"[Renko CLI] symbol={symbol} | brick={brick} | "
         f"timeframe={tf_enum.label} | bars={bars} | "
-        f"numerar={numerar}"
+        f"numerar={numerar} | modo={modo}"
     )
 
     controller = RenkoController(
@@ -76,6 +83,7 @@ def renko(symbol, brick, timeframe, bars, numerar):
         brick,
         tf_enum.mt5_const,
         bars,
+        modo,
     )
 
     bricks = controller.executar()
