@@ -53,10 +53,15 @@ SYMBOL = os.getenv(
 
 BRICK = float(os.getenv(
     "BRICK",
-    _get_config_value("RENKO", "brick", 5)
+    _get_config_value("RENKO", "brick", 50)
 ))
 
-INTERVAL = float(os.getenv(
-    "INTERVAL",
-    _get_config_value("delta", "interval", 0.5)
+PERIOD = os.getenv(
+    "PERIOD",
+    _get_config_value("RENKO", "period", "M5")
+)
+
+BARS = int(os.getenv(
+    "BARS",
+    _get_config_value("RENKO", "bars", 500)
 ))

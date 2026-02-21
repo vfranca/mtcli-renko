@@ -8,6 +8,13 @@ from ..controllers.renko_controller import RenkoController
 from ..views.renko_view import exibir_renko
 from ..domain.timeframe import Timeframe
 from mtcli.logger import setup_logger
+from ..conf import (
+    SYMBOL,
+    BRICK,
+    PERIOD,
+    BARS
+)
+
 
 log = setup_logger(__name__)
 
@@ -16,27 +23,29 @@ log = setup_logger(__name__)
 @click.option(
     "--symbol",
     "-s",
-    required=True,
+    default=SYMBOL,
+    show_default=True,
     help="Ativo (ex: WINJ26)",
 )
 @click.option(
     "--brick",
     "-b",
-    required=True,
+    default=BRICK,
+    show_default=True,
     type=float,
     help="Tamanho do brick em pontos",
 )
 @click.option(
     "--timeframe",
     "-t",
-    default="m5",
+    default=PERIOD,
     show_default=True,
     help=f"Timeframe ({', '.join(Timeframe.valid_labels())})",
 )
 @click.option(
     "--bars",
     "-n",
-    default=500,
+    default=BARS,
     show_default=True,
     help="Quantidade de candles para cálculo",
 )

@@ -1,6 +1,6 @@
 [project]
 name = "mtcli-renko"
-version = "1.0.0.dev0"
+version = "1.0.0.dev1"
 description = "Plugin do mtcli"
 authors = [
     {name = "Valmir França",email = "vfranca3@gmail.com"}
