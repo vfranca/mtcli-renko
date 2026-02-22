@@ -1,0 +1,9 @@
+[DEFAULT]
+symbol = WINJ26
+digits = 0
+
+[RENKO]
+brick = 60
+period = M5
+bars = 0
+session_open = 09:00
