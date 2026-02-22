@@ -70,3 +70,9 @@ DIGITS = int(os.getenv(
     "DIGITS",
     _get_config_value("RENKO", "digits", 2)
 ))
+
+# Hora oficial de abertura do pregão (HH:MM)
+SESSION_OPEN = os.getenv(
+    "SESSION_OPEN",
+    _get_config_value("RENKO", "session_open", "09:00")
+)

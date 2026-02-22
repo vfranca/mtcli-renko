@@ -9,34 +9,35 @@ log = setup_logger(__name__)
 
 
 class RenkoController:
-    """
-    Orquestra a geração do Renko.
-    """
 
-    def __init__(self, symbol, brick_size, timeframe, quantidade, modo="simples"):
+    def __init__(
+        self,
+        symbol,
+        brick_size,
+        timeframe,
+        quantidade,
+        modo="simples",
+        ancorar_abertura=False,
+    ):
         self.model = RenkoModel(symbol, brick_size)
         self.timeframe = timeframe
         self.quantidade = quantidade
         self.modo = modo
+        self.ancorar_abertura = ancorar_abertura
 
     def executar(self):
-        """
-        Executa fluxo completo:
-        - Busca dados
-        - Gera blocos
-        - Retorna estrutura pronta
-        """
 
-        log.info("[RenkoController] Iniciando execução do Renko.")
+        rates = self.model.obter_rates(
+            self.timeframe,
+            self.quantidade,
+            ancorar_abertura=self.ancorar_abertura,
+        )
 
-        rates = self.model.obter_rates(self.timeframe, self.quantidade)
-
-        if rates is None:
-            log.error("[RenkoController] Falha ao obter dados do MT5.")
+        if rates is None or len(rates) == 0:
             return []
 
-        bricks = self.model.construir_renko(rates, modo=self.modo)
-
-        log.info("[RenkoController] Execução finalizada.")
-
-        return bricks
+        return self.model.construir_renko(
+            rates,
+            modo=self.modo,
+            ancorar_abertura=self.ancorar_abertura,
+        )
