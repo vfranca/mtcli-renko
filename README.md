@@ -188,7 +188,7 @@ Arquitetura baseada em MVC, alinhada ao padrão do `mtcli-trade`.
 
 ## Licença
 
-GPL License
+MIT License
 
 ---
 
