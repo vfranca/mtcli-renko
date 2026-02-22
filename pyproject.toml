@@ -1,18 +1,46 @@
 [project]
 name = "mtcli-renko"
-version = "1.0.0.dev4"
-description = "Plugin do mtcli"
+version = "1.0.0rc1"
+description = "Renko plugin institucional para mtcli (MetaTrader 5)"
 authors = [
-    {name = "Valmir França",email = "vfranca3@gmail.com"}
+    { name = "Valmir França", email = "vfranca3@gmail.com" }
 ]
 readme = "README.md"
-license = "GPL-3.0"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
 requires-python = ">=3.10,<3.14"
+
+keywords = [
+    "trading",
+    "renko",
+    "metatrader5",
+    "mt5",
+    "cli",
+    "price-action"
+]
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+
 dependencies = [
     "mtcli>=3.2.0",
-    "click (>=8.3.0,<9.0.0)",
-    "metatrader5 (>=5.0.5370,<6.0.0)"
+    "click>=8.3.0,<9.0.0",
+    "metatrader5>=5.0.5370,<6.0.0"
 ]
+
+[project.urls]
+Homepage = "https://github.com/vfranca/mtcli-renko"
+Repository = "https://github.com/vfranca/mtcli-renko"
+Issues = "https://github.com/vfranca/mtcli-renko/issues"
 
 [project.entry-points."mtcli.plugins"]
 renko = "mtcli_renko.plugin:register"
@@ -36,14 +64,7 @@ line-length = 88
 target-version = "py311"
 
 [tool.ruff.lint]
-select = [
-  "E",    # Estilo
-  "F",    # Lógica
-  "B",    # Boas práticas
-  "I",    # Imports
-  "UP",   # Upgrade
-  "N",    # Naming
-]
+select = ["E", "F", "B", "I", "UP", "N"]
 ignore = ["E501"]
 
 [tool.ruff.lint.isort]
