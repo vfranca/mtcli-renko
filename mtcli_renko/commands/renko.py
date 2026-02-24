@@ -32,7 +32,30 @@ log = setup_logger(__name__)
     default=False,
     show_default=True,
 )
-def renko(symbol, brick, timeframe, bars, numerar, modo, ancorar_abertura):
+@click.option(
+    "--data-mode",
+    type=click.Choice(["candle", "tick"], case_sensitive=False),
+    default="candle",
+    show_default=True,
+)
+@click.option(
+    "--max-ticks",
+    default=3000,
+    show_default=True,
+    type=int,
+    help="Limite máximo de ticks processados no modo tick.",
+)
+def renko(
+    symbol,
+    brick,
+    timeframe,
+    bars,
+    numerar,
+    modo,
+    ancorar_abertura,
+    data_mode,
+    max_ticks,
+):
 
     try:
         tf_enum = Timeframe.from_string(timeframe)
@@ -46,6 +69,8 @@ def renko(symbol, brick, timeframe, bars, numerar, modo, ancorar_abertura):
         bars,
         modo,
         ancorar_abertura,
+        data_mode,
+        max_ticks,
     )
 
     bricks = controller.executar()
