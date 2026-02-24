@@ -8,7 +8,7 @@ from ..controllers.renko_controller import RenkoController
 from ..views.renko_view import exibir_renko
 from ..domain.timeframe import Timeframe
 from mtcli.logger import setup_logger
-from ..conf import SYMBOL, BRICK, PERIOD, BARS
+from ..conf import SYMBOL, BRICK, PERIOD, BARS, DATA_MODE, MAX_TICKS
 
 log = setup_logger(__name__)
 
@@ -35,12 +35,12 @@ log = setup_logger(__name__)
 @click.option(
     "--data-mode",
     type=click.Choice(["candle", "tick"], case_sensitive=False),
-    default="candle",
+    default=DATA_MODE,
     show_default=True,
 )
 @click.option(
     "--max-ticks",
-    default=3000,
+    default=MAX_TICKS,
     show_default=True,
     type=int,
     help="Limite máximo de ticks processados no modo tick.",

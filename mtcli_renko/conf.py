@@ -76,3 +76,14 @@ SESSION_OPEN = os.getenv(
     "SESSION_OPEN",
     _get_config_value("RENKO", "session_open", "09:00")
 )
+
+DATA_MODE = os.getenv(
+    "DATA_MODE",
+    _get_config_value("RENKO", "data_mode", "candle")
+)
+
+MAX_TICKS = int(os.getenv(
+    "MAX_TICKS",
+    _get_config_value("RENKO", "max_ticks", 10000)
+))
+

@@ -7,3 +7,5 @@ brick = 60
 period = M5
 bars = 0
 session_open = 09:00
+data_mode = candle
+max_ticks = 9000
