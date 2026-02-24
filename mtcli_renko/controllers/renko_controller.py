@@ -31,23 +31,25 @@ class RenkoController:
 
     def executar(self):
 
+        # -------------------------------------------------
+        # TICK MODE
+        # -------------------------------------------------
+
         if self.data_mode == "tick":
 
             ticks = self.model.obter_ticks(
-                max_ticks=self.max_ticks
+                timeframe=self.timeframe,
+                max_ticks=self.max_ticks,
             )
 
-            if not ticks:
+            if ticks is None or len(ticks) == 0:
                 return []
 
-            return self.model.construir_renko_ticks(
-                ticks,
-                modo=self.modo,
-            )
+            return self.model.construir_renko_ticks(ticks)
 
-        # -----------------------------
-        # Candle mode
-        # -----------------------------
+        # -------------------------------------------------
+        # CANDLE MODE
+        # -------------------------------------------------
 
         rates = self.model.obter_rates(
             self.timeframe,
@@ -61,5 +63,4 @@ class RenkoController:
         return self.model.construir_renko(
             rates,
             modo=self.modo,
-            ancorar_abertura=self.ancorar_abertura,
         )
