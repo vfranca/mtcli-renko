@@ -1,16 +1,16 @@
 """
 Renko model institucional profissional.
 
-✔ Ancoragem determinística por data
-✔ Suporte candle e tick
+✔ Ancoragem determinística por data (candle mode)
+✔ Tick mode com janela móvel até o momento atual
 ✔ Compatível com controller atual
 ✔ Seguro para numpy arrays
-✔ Funciona fora do pregão
+✔ Funciona em mercado aberto e fechado
 """
 
 from dataclasses import dataclass
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import MetaTrader5 as mt5
 
@@ -43,7 +43,7 @@ class RenkoModel:
         self.brick_size = brick_size
 
     # ======================================================
-    # AUXILIAR: descobrir último pregão real
+    # AUXILIAR
     # ======================================================
 
     def _ultimo_pregao_data(self, timeframe):
@@ -72,10 +72,6 @@ class RenkoModel:
             if not mt5.symbol_select(self.symbol, True):
                 raise RuntimeError(f"Erro ao selecionar símbolo {self.symbol}")
 
-            # -------------------------------------------------
-            # SEM ANCORAGEM
-            # -------------------------------------------------
-
             if not ancorar_abertura:
 
                 if quantidade == 0:
@@ -88,14 +84,11 @@ class RenkoModel:
                     quantidade,
                 )
 
-                if rates is None:
-                    return []
+                return rates or []
 
-                return rates
-
-            # -------------------------------------------------
-            # COM ANCORAGEM REAL POR DATA
-            # -------------------------------------------------
+            # -------------------------
+            # Ancorado no último pregão
+            # -------------------------
 
             data_pregao = self._ultimo_pregao_data(timeframe)
 
@@ -119,21 +112,13 @@ class RenkoModel:
                 if r_time.date() == data_pregao:
                     filtrado.append(r)
 
-            if not filtrado:
-                return []
-
-            total = len(filtrado)
-
             if quantidade == 0:
-                return filtrado
-
-            if quantidade >= total:
                 return filtrado
 
             return filtrado[-quantidade:]
 
     # ======================================================
-    # TICKS (tick mode)
+    # TICKS (tick mode corrigido)
     # ======================================================
 
     def obter_ticks(self, timeframe, max_ticks=5000):
@@ -153,15 +138,21 @@ class RenkoModel:
                 datetime.strptime(SESSION_OPEN, "%H:%M").time(),
             )
 
-            ticks = mt5.copy_ticks_from(
+            agora = datetime.now()
+
+            ticks = mt5.copy_ticks_range(
                 self.symbol,
                 inicio,
-                max_ticks,
+                agora,
                 mt5.COPY_TICKS_ALL,
             )
 
-            if ticks is None:
+            if ticks is None or len(ticks) == 0:
                 return []
+
+            # 🔥 Pegar apenas os ticks mais recentes
+            if len(ticks) > max_ticks:
+                ticks = ticks[-max_ticks:]
 
             return ticks
 
@@ -188,10 +179,6 @@ class RenkoModel:
             high = float(rate["high"])
             low = float(rate["low"])
 
-            # -------------------------------------------------
-            # MODO SIMPLES
-            # -------------------------------------------------
-
             if modo == "simples":
 
                 while high - last_price >= self.brick_size:
@@ -203,10 +190,6 @@ class RenkoModel:
                     novo = last_price - self.brick_size
                     bricks.append(RenkoBrick("down", last_price, novo))
                     last_price = novo
-
-            # -------------------------------------------------
-            # MODO CLÁSSICO (reversão 2x)
-            # -------------------------------------------------
 
             elif modo == "classico":
 
@@ -250,7 +233,7 @@ class RenkoModel:
     # CONSTRUÇÃO RENKO (TICK)
     # ======================================================
 
-    def construir_renko_ticks(self, ticks) -> List[RenkoBrick]:
+    def construir_renko_ticks(self, ticks, modo="simples") -> List[RenkoBrick]:
 
         if ticks is None or len(ticks) < 2:
             return []
