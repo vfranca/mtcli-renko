@@ -1,6 +1,6 @@
 [project]
 name = "mtcli-renko"
-version = "1.0.0rc1"
+version = "1.0.0"
 description = "Renko plugin institucional para mtcli (MetaTrader 5)"
 authors = [
     { name = "Valmir França", email = "vfranca3@gmail.com" }
@@ -20,7 +20,7 @@ keywords = [
 ]
 
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Financial and Insurance Industry",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -41,6 +41,7 @@ dependencies = [
 Homepage = "https://github.com/vfranca/mtcli-renko"
 Repository = "https://github.com/vfranca/mtcli-renko"
 Issues = "https://github.com/vfranca/mtcli-renko/issues"
+Documentation = "https://vfranca.github.io/mtcli-renko"
 
 [project.entry-points."mtcli.plugins"]
 renko = "mtcli_renko.plugin:register"
