@@ -1,5 +1,11 @@
 """
 Renko controller.
+
+Orquestra model e view.
+Suporta:
+
+✔ Candle mode (retorna lista de bricks)
+✔ Tick mode híbrido (retorna RenkoResult)
 """
 
 from ..models.renko_model import RenkoModel
@@ -9,6 +15,13 @@ log = setup_logger(__name__)
 
 
 class RenkoController:
+    """
+    Controlador responsável por:
+
+    - Buscar dados (rates ou ticks)
+    - Delegar construção ao model
+    - Retornar estrutura adequada para a view
+    """
 
     def __init__(
         self,
@@ -21,6 +34,19 @@ class RenkoController:
         data_mode="candle",
         max_ticks=3000,
     ):
+        """
+        Inicializa o controller.
+
+        :param symbol: ativo (ex: WINJ26)
+        :param brick_size: tamanho do tijolo
+        :param timeframe: constante MT5
+        :param quantidade: número de candles
+        :param modo: simples ou classico
+        :param ancorar_abertura: usar apenas pregão atual (candle mode)
+        :param data_mode: candle ou tick
+        :param max_ticks: limite máximo de ticks processados
+        """
+
         self.model = RenkoModel(symbol, brick_size)
         self.timeframe = timeframe
         self.quantidade = quantidade
@@ -29,10 +55,21 @@ class RenkoController:
         self.data_mode = data_mode
         self.max_ticks = max_ticks
 
+    # ======================================================
+    # EXECUÇÃO PRINCIPAL
+    # ======================================================
+
     def executar(self):
+        """
+        Executa geração do Renko conforme modo selecionado.
+
+        Retorna:
+            - List[RenkoBrick] no candle mode
+            - RenkoResult no tick mode híbrido
+        """
 
         # -------------------------------------------------
-        # TICK MODE
+        # TICK MODE (HÍBRIDO)
         # -------------------------------------------------
 
         if self.data_mode == "tick":
@@ -43,6 +80,7 @@ class RenkoController:
             )
 
             if ticks is None or len(ticks) == 0:
+                log.warning("Nenhum tick retornado.")
                 return []
 
             return self.model.construir_renko_ticks(ticks)
@@ -58,6 +96,7 @@ class RenkoController:
         )
 
         if rates is None or len(rates) == 0:
+            log.warning("Nenhum rate retornado.")
             return []
 
         return self.model.construir_renko(
