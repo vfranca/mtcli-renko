@@ -1,11 +1,10 @@
 """
 Renko controller.
 
-Orquestra model e view.
-Suporta:
-
-✔ Candle mode (retorna lista de bricks)
-✔ Tick mode híbrido (retorna RenkoResult)
+Responsável por:
+- Orquestrar obtenção de dados (candle ou tick)
+- Chamar o model
+- Aplicar estilo de saída no modo tick
 """
 
 from ..models.renko_model import RenkoModel
@@ -16,11 +15,17 @@ log = setup_logger(__name__)
 
 class RenkoController:
     """
-    Controlador responsável por:
+    Controller principal do Renko.
 
-    - Buscar dados (rates ou ticks)
-    - Delegar construção ao model
-    - Retornar estrutura adequada para a view
+    :param symbol: ativo (ex: WINJ26)
+    :param brick_size: tamanho do brick
+    :param timeframe: timeframe MT5 (para candle)
+    :param quantidade: número de candles
+    :param modo: simples ou classico
+    :param ancorar_abertura: ancora na abertura da sessão
+    :param data_mode: candle ou tick
+    :param max_ticks: quantidade máxima de ticks
+    :param tick_style: estrutural | hibrido | agressivo
     """
 
     def __init__(
@@ -33,20 +38,8 @@ class RenkoController:
         ancorar_abertura=False,
         data_mode="candle",
         max_ticks=3000,
+        tick_style="hibrido",
     ):
-        """
-        Inicializa o controller.
-
-        :param symbol: ativo (ex: WINJ26)
-        :param brick_size: tamanho do tijolo
-        :param timeframe: constante MT5
-        :param quantidade: número de candles
-        :param modo: simples ou classico
-        :param ancorar_abertura: usar apenas pregão atual (candle mode)
-        :param data_mode: candle ou tick
-        :param max_ticks: limite máximo de ticks processados
-        """
-
         self.model = RenkoModel(symbol, brick_size)
         self.timeframe = timeframe
         self.quantidade = quantidade
@@ -54,24 +47,16 @@ class RenkoController:
         self.ancorar_abertura = ancorar_abertura
         self.data_mode = data_mode
         self.max_ticks = max_ticks
-
-    # ======================================================
-    # EXECUÇÃO PRINCIPAL
-    # ======================================================
+        self.tick_style = tick_style
 
     def executar(self):
         """
-        Executa geração do Renko conforme modo selecionado.
-
-        Retorna:
-            - List[RenkoBrick] no candle mode
-            - RenkoResult no tick mode híbrido
+        Executa construção do Renko conforme modo configurado.
         """
 
-        # -------------------------------------------------
-        # TICK MODE (HÍBRIDO)
-        # -------------------------------------------------
-
+        # =========================
+        # MODO TICK
+        # =========================
         if self.data_mode == "tick":
 
             ticks = self.model.obter_ticks(
@@ -79,16 +64,32 @@ class RenkoController:
                 max_ticks=self.max_ticks,
             )
 
+            # 🔒 Correção definitiva do erro numpy
             if ticks is None or len(ticks) == 0:
-                log.warning("Nenhum tick retornado.")
                 return []
 
-            return self.model.construir_renko_ticks(ticks)
+            resultado = self.model.construir_renko_ticks(ticks)
 
-        # -------------------------------------------------
-        # CANDLE MODE
-        # -------------------------------------------------
+            # =========================
+            # Aplicar estilo de tick
+            # =========================
 
+            # Estrutural → somente confirmados
+            if self.tick_style == "estrutural":
+                return resultado.confirmados
+
+            # Agressivo → confirmados + parcial como válido
+            if self.tick_style == "agressivo":
+                if resultado.em_formacao:
+                    return resultado.confirmados + [resultado.em_formacao]
+                return resultado.confirmados
+
+            # Híbrido (default) → retorna objeto completo
+            return resultado
+
+        # =========================
+        # MODO CANDLE
+        # =========================
         rates = self.model.obter_rates(
             self.timeframe,
             self.quantidade,
@@ -96,7 +97,6 @@ class RenkoController:
         )
 
         if rates is None or len(rates) == 0:
-            log.warning("Nenhum rate retornado.")
             return []
 
         return self.model.construir_renko(

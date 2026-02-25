@@ -1,7 +1,5 @@
 """
-Renko view.
-
-Saída textual acessível para leitores de tela.
+Renko view acessível.
 """
 
 import click
@@ -10,15 +8,12 @@ from ..conf import DIGITS
 
 def exibir_renko(resultado, numerar: bool = False):
 
-    # --------------------------
-    # Candle mode (lista simples)
-    # --------------------------
+    if not resultado:
+        click.echo("Nenhum bloco Renko gerado.")
+        return
 
+    # Lista simples (estrutural ou agressivo)
     if isinstance(resultado, list):
-
-        if not resultado:
-            click.echo("Nenhum bloco Renko gerado.")
-            return
 
         click.echo("=== GRAFICO RENKO ===")
         click.echo(f"Total de blocos: {len(resultado)}")
@@ -44,16 +39,9 @@ def exibir_renko(resultado, numerar: bool = False):
 
         return
 
-    # --------------------------
-    # Tick mode híbrido
-    # --------------------------
-
+    # Híbrido
     confirmados = resultado.confirmados
     em_formacao = resultado.em_formacao
-
-    if not confirmados and not em_formacao:
-        click.echo("Nenhum bloco Renko gerado.")
-        return
 
     click.echo("=== GRAFICO RENKO ===")
     click.echo(f"Blocos confirmados: {len(confirmados)}")

@@ -43,7 +43,13 @@ log = setup_logger(__name__)
     default=MAX_TICKS,
     show_default=True,
     type=int,
-    help="Limite máximo de ticks processados no modo tick.",
+)
+@click.option(
+    "--tick-style",
+    type=click.Choice(["estrutural", "hibrido", "agressivo"], case_sensitive=False),
+    default="hibrido",
+    show_default=True,
+    help="Define como tratar brick em formação no modo tick.",
 )
 def renko(
     symbol,
@@ -55,6 +61,7 @@ def renko(
     ancorar_abertura,
     data_mode,
     max_ticks,
+    tick_style,
 ):
 
     try:
@@ -71,7 +78,8 @@ def renko(
         ancorar_abertura,
         data_mode,
         max_ticks,
+        tick_style,
     )
 
-    bricks = controller.executar()
-    exibir_renko(bricks, numerar=numerar)
+    resultado = controller.executar()
+    exibir_renko(resultado, numerar=numerar)
