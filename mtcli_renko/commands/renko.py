@@ -8,7 +8,7 @@ from ..controllers.renko_controller import RenkoController
 from ..views.renko_view import exibir_renko
 from ..domain.timeframe import Timeframe
 from mtcli.logger import setup_logger
-from ..conf import SYMBOL, BRICK, PERIOD, BARS, DATA_MODE, MAX_TICKS
+from ..conf import SYMBOL, BRICK, PERIOD, BARS, DATA_MODE, MAX_TICKS, TICK_STYLE
 
 log = setup_logger(__name__)
 
@@ -47,7 +47,7 @@ log = setup_logger(__name__)
 @click.option(
     "--tick-style",
     type=click.Choice(["estrutural", "hibrido", "agressivo"], case_sensitive=False),
-    default="hibrido",
+    default=TICK_STYLE,
     show_default=True,
     help="Define como tratar brick em formação no modo tick.",
 )

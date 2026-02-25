@@ -87,3 +87,8 @@ MAX_TICKS = int(os.getenv(
     _get_config_value("RENKO", "max_ticks", 10000)
 ))
 
+TICK_STYLE = os.getenv(
+    "TICK_STYLE",
+    _get_config_value("RENKO", "tick_style", "hibrido")
+)
+
