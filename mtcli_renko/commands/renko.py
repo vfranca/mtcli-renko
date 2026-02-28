@@ -48,12 +48,14 @@ log = setup_logger(__name__)
     default=TICK_STYLE,
 )
 
-# NOVOS
-@click.option("--limit-bricks", type=int, default=0)
+@click.option("--limit-bricks", type=int, default=None)
 
 @click.option("--price-min", type=float, default=None)
 
 @click.option("--price-max", type=float, default=None)
+
+@click.option("--reverse", is_flag=True)
+
 
 def renko(
     symbol,
@@ -69,7 +71,11 @@ def renko(
     limit_bricks,
     price_min,
     price_max,
+    reverse,
 ):
+    """
+    Gera gráfico Renko no terminal.
+    """
 
     try:
         tf_enum = Timeframe.from_string(timeframe)
@@ -77,18 +83,19 @@ def renko(
         raise click.BadParameter(str(e))
 
     controller = RenkoController(
-        symbol,
-        brick,
-        tf_enum.mt5_const,
-        bars,
-        modo,
-        ancorar_abertura,
-        data_mode,
-        max_ticks,
-        tick_style,
-        limit_bricks,
-        price_min,
-        price_max,
+        symbol=symbol,
+        brick_size=brick,
+        timeframe=tf_enum.mt5_const,
+        quantidade=bars,
+        modo=modo,
+        ancorar_abertura=ancorar_abertura,
+        data_mode=data_mode,
+        max_ticks=max_ticks,
+        tick_style=tick_style,
+        price_min=price_min,
+        price_max=price_max,
+        limit_bricks=limit_bricks,
+        reverse=reverse,
     )
 
     resultado = controller.executar()
