@@ -6,70 +6,76 @@ import click
 from ..conf import DIGITS
 
 
-def exibir_renko(resultado, numerar: bool = False):
+def _detectar_padroes(bricks):
+
+    if len(bricks) < 3:
+        return []
+
+    patterns = []
+
+    last = bricks[-1].direction
+    prev = bricks[-2].direction
+    prev2 = bricks[-3].direction
+
+    if last == "up" and prev == "down":
+        patterns.append("H1")
+
+    if last == "up" and prev == "down" and prev2 == "up":
+        patterns.append("H2")
+
+    if last == "down" and prev == "up" and prev2 == "down":
+        patterns.append("L2")
+
+    return patterns
+
+
+def _metricas(bricks):
+
+    up = sum(1 for b in bricks if b.direction == "up")
+    down = sum(1 for b in bricks if b.direction == "down")
+
+    return up, down
+
+
+def exibir_renko(resultado, numerar=False):
 
     if not resultado:
         click.echo("Nenhum bloco Renko gerado.")
         return
 
-    # Lista simples (estrutural ou agressivo)
     if isinstance(resultado, list):
 
-        click.echo("=== GRAFICO RENKO ===")
-        click.echo(f"Total de blocos: {len(resultado)}")
-        click.echo()
+        bricks = resultado
 
-        for i, brick in enumerate(resultado, start=1):
+    else:
 
-            if numerar:
-                linha = (
-                    f"{i} "
-                    f"{brick.direction.upper()} "
-                    f"{brick.open:.{DIGITS}f} "
-                    f"{brick.close:.{DIGITS}f}"
-                )
-            else:
-                linha = (
-                    f"{brick.direction.upper()} "
-                    f"{brick.open:.{DIGITS}f} "
-                    f"{brick.close:.{DIGITS}f}"
-                )
-
-            click.echo(linha)
-
-        return
-
-    # Híbrido
-    confirmados = resultado.confirmados
-    em_formacao = resultado.em_formacao
+        bricks = resultado.confirmados
 
     click.echo("=== GRAFICO RENKO ===")
-    click.echo(f"Blocos confirmados: {len(confirmados)}")
+    click.echo(f"Total de blocos: {len(bricks)}")
     click.echo()
 
-    for i, brick in enumerate(confirmados, start=1):
+    up, down = _metricas(bricks)
+
+    click.echo("METRICAS:")
+    click.echo(f"Up: {up}")
+    click.echo(f"Down: {down}")
+    click.echo(f"Delta: {up-down}")
+    click.echo()
+
+    patterns = _detectar_padroes(bricks)
+
+    if patterns:
+        click.echo("PADROES:")
+        for p in patterns:
+            click.echo(p)
+        click.echo()
+
+    for i, brick in enumerate(bricks, start=1):
 
         if numerar:
-            linha = (
-                f"{i} "
-                f"{brick.direction.upper()} "
-                f"{brick.open:.{DIGITS}f} "
-                f"{brick.close:.{DIGITS}f}"
-            )
+            linha = f"{i} {brick.direction.upper()} {brick.open:.{DIGITS}f} {brick.close:.{DIGITS}f}"
         else:
-            linha = (
-                f"{brick.direction.upper()} "
-                f"{brick.open:.{DIGITS}f} "
-                f"{brick.close:.{DIGITS}f}"
-            )
+            linha = f"{brick.direction.upper()} {brick.open:.{DIGITS}f} {brick.close:.{DIGITS}f}"
 
         click.echo(linha)
-
-    if em_formacao:
-        click.echo()
-        click.echo("EM FORMACAO:")
-        click.echo(
-            f"{em_formacao.direction.upper()} "
-            f"{em_formacao.open:.{DIGITS}f} "
-            f"{em_formacao.close:.{DIGITS}f}"
-        )

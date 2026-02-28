@@ -15,42 +15,46 @@ log = setup_logger(__name__)
 
 @click.command()
 @click.version_option(package_name="mtcli-renko")
+
 @click.option("--symbol", "-s", default=SYMBOL, show_default=True)
+
 @click.option("--brick", "-b", default=BRICK, show_default=True, type=float)
+
 @click.option("--timeframe", "-t", default=PERIOD, show_default=True)
+
 @click.option("--bars", "-n", default=BARS, show_default=True, type=int)
+
 @click.option("--numerar/--no-numerar", default=False, show_default=True)
+
 @click.option(
     "--modo",
     type=click.Choice(["simples", "classico"], case_sensitive=False),
     default="simples",
-    show_default=True,
 )
-@click.option(
-    "--ancorar-abertura",
-    is_flag=True,
-    default=False,
-    show_default=True,
-)
+
+@click.option("--ancorar-abertura", is_flag=True)
+
 @click.option(
     "--data-mode",
-    type=click.Choice(["candle", "tick"], case_sensitive=False),
+    type=click.Choice(["candle", "tick"]),
     default=DATA_MODE,
-    show_default=True,
 )
-@click.option(
-    "--max-ticks",
-    default=MAX_TICKS,
-    show_default=True,
-    type=int,
-)
+
+@click.option("--max-ticks", default=MAX_TICKS, type=int)
+
 @click.option(
     "--tick-style",
-    type=click.Choice(["estrutural", "hibrido", "agressivo"], case_sensitive=False),
+    type=click.Choice(["estrutural", "hibrido", "agressivo"]),
     default=TICK_STYLE,
-    show_default=True,
-    help="Define como tratar brick em formação no modo tick.",
 )
+
+# NOVOS
+@click.option("--limit-bricks", type=int, default=0)
+
+@click.option("--price-min", type=float, default=None)
+
+@click.option("--price-max", type=float, default=None)
+
 def renko(
     symbol,
     brick,
@@ -62,6 +66,9 @@ def renko(
     data_mode,
     max_ticks,
     tick_style,
+    limit_bricks,
+    price_min,
+    price_max,
 ):
 
     try:
@@ -79,7 +86,11 @@ def renko(
         data_mode,
         max_ticks,
         tick_style,
+        limit_bricks,
+        price_min,
+        price_max,
     )
 
     resultado = controller.executar()
+
     exibir_renko(resultado, numerar=numerar)

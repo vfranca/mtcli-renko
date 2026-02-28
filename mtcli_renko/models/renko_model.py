@@ -1,8 +1,9 @@
 """
 RenkoModel profissional com:
 
-- Ancoragem correta em múltiplos do brick
-- Suporte real a ancorar_abertura
+- Ancoragem correta na abertura do pregão
+- Compatível com histórico
+- Limite real de ticks
 - Integração SQLite + MT5
 - Determinismo estrutural
 """
@@ -41,6 +42,7 @@ class RenkoTickResult:
 class RenkoModel:
 
     def __init__(self, symbol: str, brick_size: float):
+
         self.symbol = symbol
         self.brick_size = brick_size
         self.repo = TickRepository()
@@ -57,14 +59,14 @@ class RenkoModel:
 
     def _session_start_from_timestamp(self, ts: int) -> int:
         """
-        Calcula abertura da sessão baseada na data do timestamp.
+        Calcula abertura da sessão baseado no dia do timestamp.
         """
 
-        dt = datetime.fromtimestamp(ts)
+        data = datetime.fromtimestamp(ts)
 
         abertura = datetime.combine(
-            dt.date(),
-            dtime.fromisoformat(SESSION_OPEN)
+            data.date(),
+            dtime.fromisoformat(SESSION_OPEN),
         )
 
         return int(abertura.timestamp())
@@ -88,12 +90,8 @@ class RenkoModel:
         if rates is None or len(rates) == 0:
             return []
 
-        if ancorar_abertura:
-            rates = self._filtrar_sessao(rates)
-
-        return rates
-
-    def _filtrar_sessao(self, rates):
+        if not ancorar_abertura:
+            return rates
 
         abertura = dtime.fromisoformat(SESSION_OPEN)
 
@@ -108,6 +106,10 @@ class RenkoModel:
 
         return filtrados
 
+    # ============================================================
+    # UTIL CLOSE
+    # ============================================================
+
     def _get_close_from_rate(self, candle):
 
         try:
@@ -120,6 +122,10 @@ class RenkoModel:
 
             except Exception:
                 return candle[4]
+
+    # ============================================================
+    # RENKO CANDLE
+    # ============================================================
 
     def construir_renko(self, rates, modo="simples"):
 
@@ -157,40 +163,49 @@ class RenkoModel:
     # TICK MODE
     # ============================================================
 
-    def obter_ticks(self, timeframe=None, max_ticks=10000, ancorar_abertura=False):
+    def obter_ticks(self, max_ticks=10000, ancorar_abertura=False):
 
         last_time = self.repo._get_last_tick_time(self.symbol)
 
         if last_time is None:
+
             self.repo.sync(self.symbol, days_back=3)
+            last_time = self.repo._get_last_tick_time(self.symbol)
+
         else:
+
             self.repo.sync(self.symbol)
+
+        if last_time is None:
+            return []
+
+        end_ts = int(datetime.now().timestamp())
+
+        # --------------------------------------------------------
+        # ANCORAGEM CORRIGIDA
+        # --------------------------------------------------------
+
+        if ancorar_abertura:
+
+            start_ts = self._session_start_from_timestamp(last_time)
+
+        else:
+
+            start_ts = 0
 
         rows = self.repo.get_ticks_between(
             self.symbol,
-            0,
-            int(datetime.now().timestamp()),
+            start_ts,
+            end_ts,
         )
 
         if not rows:
             return []
 
-        # ========================================================
-        # ANCORAGEM NA ABERTURA DA SESSÃO ATUAL
-        # ========================================================
-
-        if ancorar_abertura:
-
-            ultimo_tick_ts = rows[-1][0]
-
-            start_ts = self._session_start_from_timestamp(ultimo_tick_ts)
-
-            rows = [t for t in rows if t[0] >= start_ts]
-
         return rows[-max_ticks:]
 
     # ============================================================
-    # CONSTRUÇÃO RENKO
+    # RENKO TICKS
     # ============================================================
 
     def construir_renko_ticks(self, ticks) -> RenkoTickResult:
