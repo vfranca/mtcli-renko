@@ -6,7 +6,7 @@ import click
 
 from ..controllers.renko_controller import RenkoController
 from ..views.renko_view import exibir_renko
-from ..domain.timeframe import Timeframe
+from mtcli.domain.timeframe import Timeframe
 from mtcli.logger import setup_logger
 from ..conf import SYMBOL, BRICK, PERIOD, BARS, DATA_MODE, MAX_TICKS, TICK_STYLE
 
