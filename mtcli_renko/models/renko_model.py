@@ -12,6 +12,7 @@ RenkoModel profissional.
 
 from dataclasses import dataclass
 from typing import List, Optional, NamedTuple
+from zoneinfo import ZoneInfo
 from datetime import datetime, time as dtime
 
 import MetaTrader5 as mt5
@@ -104,14 +105,21 @@ class RenkoModel:
         # ANCORAGEM NA ÚLTIMA SESSÃO DISPONÍVEL
         # ----------------------------------------------------
 
+        from datetime import timedelta
+
         ultimo_ts = int(rates[-1]["time"])
 
-        ultimo_dia = datetime.utcfromtimestamp(ultimo_ts).date()
+        ultimo_dt = datetime.fromtimestamp(ultimo_ts)
+
+        ultimo_dia = ultimo_dt.date()
 
         abertura = datetime.combine(
             ultimo_dia,
             dtime.fromisoformat(SESSION_OPEN),
         )
+
+        # ajuste B3 -> UTC
+        abertura = abertura - timedelta(hours=3)
 
         abertura_ts = int(abertura.timestamp())
 
@@ -132,6 +140,8 @@ class RenkoModel:
 
     def obter_ticks(self, max_ticks=5000, ancorar_abertura=False):
 
+        from datetime import timedelta
+
         last_time = self.repo._get_last_tick_time(self.symbol)
 
         if last_time is None:
@@ -146,18 +156,25 @@ class RenkoModel:
         if last_time is None:
             return []
 
-        end_ts = int(datetime.utcnow().timestamp())
+        end_ts = int(datetime.now().timestamp())
 
         if ancorar_abertura:
 
-            data = datetime.utcfromtimestamp(last_time)
+            data = datetime.fromtimestamp(last_time)
 
-            abertura = datetime.combine(
+            # 09:00 horário B3
+            abertura_b3 = datetime.combine(
                 data.date(),
                 datetime.strptime(SESSION_OPEN, "%H:%M").time(),
             )
 
-            start_ts = int(abertura.timestamp())
+            # converter B3 (UTC-3) → UTC
+            abertura_utc = abertura_b3 - timedelta(hours=3)
+
+            # margem de segurança
+            abertura_utc = abertura_utc + timedelta(seconds=50)
+
+            start_ts = int(abertura_utc.timestamp())
 
         else:
 
