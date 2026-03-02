@@ -92,3 +92,12 @@ TICK_STYLE = os.getenv(
     _get_config_value("RENKO", "tick_style", "hibrido")
 )
 
+MODO = os.getenv(
+    "MODO",
+    _get_config_value("RENKO", "modo", "simples")
+)
+
+LIMIT_BRICKS = int(os.getenv(
+    "LIMIT_BRICKS",
+    _get_config_value("RENKO", "limit_bricks", 0)
+))

@@ -1,12 +1,12 @@
-[DEFAULT]
+[RENKO]
 symbol = WINJ26
 digits = 0
-
-[RENKO]
 brick = 60
-period = M5
+period = M1
 bars = 0
 session_open = 09:00
 data_mode = tick
-max_ticks = 60000
+max_ticks = 5000000
 tick_style = hibrido
+modo = simples
+limit_bricks = 0
