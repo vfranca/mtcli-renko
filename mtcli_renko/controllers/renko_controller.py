@@ -2,9 +2,10 @@
 Renko controller.
 
 Responsável por:
+
 - Orquestrar obtenção de dados (candle ou tick)
 - Chamar o model
-- Aplicar estilo de saída
+- Aplicar filtros e estilos
 """
 
 from ..models.renko_model import RenkoModel
@@ -82,13 +83,17 @@ class RenkoController:
                 ancorar_abertura=self.ancorar_abertura,
             )
 
-            if not ticks:
+            if ticks is None or len(ticks) == 0:
                 log.warning("Nenhum tick retornado.")
                 return []
 
             resultado = self.model.construir_renko_ticks(ticks)
 
             bricks = resultado.confirmados
+
+        # ======================================================
+        # CANDLE MODE
+        # ======================================================
 
         else:
 
@@ -98,7 +103,7 @@ class RenkoController:
                 ancorar_abertura=self.ancorar_abertura,
             )
 
-            if not rates:
+            if rates is None or len(rates) == 0:
                 log.warning("Nenhum candle retornado.")
                 return []
 
@@ -110,7 +115,7 @@ class RenkoController:
             resultado = bricks
 
         # ======================================================
-        # FILTROS OPCIONAIS
+        # FILTROS
         # ======================================================
 
         if self.price_min is not None:
@@ -135,12 +140,15 @@ class RenkoController:
                 return bricks
 
             if self.tick_style == "agressivo":
+
                 if resultado.em_formacao:
                     bricks.append(resultado.em_formacao)
+
                 return bricks
 
             # híbrido
-            resultado.confirmados = bricks
+            resultado = resultado._replace(confirmados=bricks)
+
             return resultado
 
         return bricks

@@ -1,26 +1,31 @@
 """
-RenkoModel profissional com:
+RenkoModel profissional.
 
-- Ancoragem correta na abertura do pregão
-- Compatível com histórico
-- Limite real de ticks
-- Integração SQLite + MT5
-- Determinismo estrutural
+✔ Candle mode determinístico
+✔ Tick mode híbrido (confirmados + em formação)
+✔ Compatível com controller atual
+✔ Funciona mesmo com mercado fechado
+✔ Correção de numpy truth value
+✔ Ancoragem estável na sessão
 """
 
 from dataclasses import dataclass
+from typing import List, Optional, NamedTuple
 from datetime import datetime, time as dtime
-from typing import List, Optional
 
 import MetaTrader5 as mt5
 
+from mtcli.mt5_context import mt5_conexao
+from mtcli.logger import setup_logger
 from mtcli.marketdata.tick_repository import TickRepository
 from ..conf import SESSION_OPEN
 
+log = setup_logger(__name__)
 
-# ============================================================
-# ENTIDADES
-# ============================================================
+
+# ==========================================================
+# DATA STRUCTURES
+# ==========================================================
 
 @dataclass
 class Brick:
@@ -29,15 +34,14 @@ class Brick:
     close: float
 
 
-@dataclass
-class RenkoTickResult:
+class RenkoTickResult(NamedTuple):
     confirmados: List[Brick]
-    em_formacao: Optional[Brick] = None
+    em_formacao: Optional[Brick]
 
 
-# ============================================================
+# ==========================================================
 # MODEL
-# ============================================================
+# ==========================================================
 
 class RenkoModel:
 
@@ -47,45 +51,53 @@ class RenkoModel:
         self.brick_size = brick_size
         self.repo = TickRepository()
 
-    # ============================================================
-    # UTIL
-    # ============================================================
+    # ======================================================
+    # AUXILIAR
+    # ======================================================
 
-    def _align_price(self, price: float) -> float:
-        """
-        Alinha preço ao múltiplo do brick.
-        """
-        return round(price / self.brick_size) * self.brick_size
+    def _ultimo_pregao_data(self, timeframe):
 
-    def _session_start_from_timestamp(self, ts: int) -> int:
-        """
-        Calcula abertura da sessão baseado no dia do timestamp.
-        """
+        with mt5_conexao():
 
-        data = datetime.fromtimestamp(ts)
+            ultimo = mt5.copy_rates_from_pos(
+                self.symbol,
+                timeframe,
+                0,
+                1,
+            )
 
-        abertura = datetime.combine(
-            data.date(),
-            dtime.fromisoformat(SESSION_OPEN),
-        )
+        if ultimo is None or len(ultimo) == 0:
+            return None
 
-        return int(abertura.timestamp())
+        ultimo_time = datetime.fromtimestamp(int(ultimo[0]["time"]))
+        return ultimo_time.date()
 
-    # ============================================================
-    # CANDLE MODE
-    # ============================================================
+    # ======================================================
+    # RATES (CANDLE MODE)
+    # ======================================================
 
     def obter_rates(self, timeframe, quantidade, ancorar_abertura=False):
+        """
+        Obtém candles do MT5.
 
-        if quantidade == 0:
-            quantidade = 500
+        Se ancorar_abertura=True:
+        retorna apenas candles da sessão do último pregão disponível.
+        """
 
-        rates = mt5.copy_rates_from_pos(
-            self.symbol,
-            timeframe,
-            0,
-            quantidade,
-        )
+        with mt5_conexao():
+
+            if not mt5.symbol_select(self.symbol, True):
+                raise RuntimeError(f"Erro ao selecionar símbolo {self.symbol}")
+
+            if quantidade == 0:
+                quantidade = 1000
+
+            rates = mt5.copy_rates_from_pos(
+                self.symbol,
+                timeframe,
+                0,
+                quantidade,
+            )
 
         if rates is None or len(rates) == 0:
             return []
@@ -93,77 +105,36 @@ class RenkoModel:
         if not ancorar_abertura:
             return rates
 
-        abertura = dtime.fromisoformat(SESSION_OPEN)
+        # ----------------------------------------------------
+        # ANCORAGEM NA ÚLTIMA SESSÃO DISPONÍVEL
+        # ----------------------------------------------------
+
+        ultimo_ts = int(rates[-1]["time"])
+        ultimo_dia = datetime.fromtimestamp(ultimo_ts).date()
+
+        abertura = datetime.combine(
+            ultimo_dia,
+            dtime.fromisoformat(SESSION_OPEN),
+        )
+
+        abertura_ts = int(abertura.timestamp())
 
         filtrados = []
 
         for r in rates:
 
-            ts = datetime.fromtimestamp(r["time"])
+            ts = int(r["time"])
 
-            if ts.time() >= abertura:
+            if ts >= abertura_ts:
                 filtrados.append(r)
 
         return filtrados
 
-    # ============================================================
-    # UTIL CLOSE
-    # ============================================================
+    # ======================================================
+    # TICKS (BANCO + MT5)
+    # ======================================================
 
-    def _get_close_from_rate(self, candle):
-
-        try:
-            return candle["close"]
-
-        except Exception:
-
-            try:
-                return candle.close
-
-            except Exception:
-                return candle[4]
-
-    # ============================================================
-    # RENKO CANDLE
-    # ============================================================
-
-    def construir_renko(self, rates, modo="simples"):
-
-        if not rates:
-            return []
-
-        bricks: List[Brick] = []
-
-        preco_inicial = self._get_close_from_rate(rates[0])
-        preco_base = self._align_price(preco_inicial)
-
-        for candle in rates:
-
-            preco = self._get_close_from_rate(candle)
-
-            while preco >= preco_base + self.brick_size:
-
-                bricks.append(
-                    Brick("up", preco_base, preco_base + self.brick_size)
-                )
-
-                preco_base += self.brick_size
-
-            while preco <= preco_base - self.brick_size:
-
-                bricks.append(
-                    Brick("down", preco_base, preco_base - self.brick_size)
-                )
-
-                preco_base -= self.brick_size
-
-        return bricks
-
-    # ============================================================
-    # TICK MODE
-    # ============================================================
-
-    def obter_ticks(self, max_ticks=10000, ancorar_abertura=False):
+    def obter_ticks(self, max_ticks=5000, ancorar_abertura=False):
 
         last_time = self.repo._get_last_tick_time(self.symbol)
 
@@ -181,13 +152,16 @@ class RenkoModel:
 
         end_ts = int(datetime.now().timestamp())
 
-        # --------------------------------------------------------
-        # ANCORAGEM CORRIGIDA
-        # --------------------------------------------------------
-
         if ancorar_abertura:
 
-            start_ts = self._session_start_from_timestamp(last_time)
+            data = datetime.fromtimestamp(last_time)
+
+            abertura = datetime.combine(
+                data.date(),
+                datetime.strptime(SESSION_OPEN, "%H:%M").time(),
+            )
+
+            start_ts = int(abertura.timestamp())
 
         else:
 
@@ -199,64 +173,115 @@ class RenkoModel:
             end_ts,
         )
 
-        if not rows:
+        if rows is None or len(rows) == 0:
             return []
 
         return rows[-max_ticks:]
 
-    # ============================================================
-    # RENKO TICKS
-    # ============================================================
+    # ======================================================
+    # RENKO CANDLE
+    # ======================================================
 
-    def construir_renko_ticks(self, ticks) -> RenkoTickResult:
+    def construir_renko(self, rates, modo="simples") -> List[Brick]:
 
-        if not ticks:
-            return RenkoTickResult([])
+        if rates is None or len(rates) < 2:
+            return []
 
         bricks: List[Brick] = []
 
-        preco_inicial = ticks[0][3]
-        preco_base = self._align_price(preco_inicial)
+        last_price = float(rates[0]["open"])
 
-        ultimo_preco = preco_base
+        for rate in rates[1:]:
 
-        for tick in ticks:
+            high = float(rate["high"])
+            low = float(rate["low"])
 
-            preco = tick[3]
+            while high - last_price >= self.brick_size:
 
-            while preco >= preco_base + self.brick_size:
-
-                bricks.append(
-                    Brick("up", preco_base, preco_base + self.brick_size)
-                )
-
-                preco_base += self.brick_size
-
-            while preco <= preco_base - self.brick_size:
+                novo = last_price + self.brick_size
 
                 bricks.append(
-                    Brick("down", preco_base, preco_base - self.brick_size)
+                    Brick(
+                        direction="up",
+                        open=last_price,
+                        close=novo,
+                    )
                 )
 
-                preco_base -= self.brick_size
+                last_price = novo
 
-            ultimo_preco = preco
+            while last_price - low >= self.brick_size:
 
-        diferenca = ultimo_preco - preco_base
+                novo = last_price - self.brick_size
+
+                bricks.append(
+                    Brick(
+                        direction="down",
+                        open=last_price,
+                        close=novo,
+                    )
+                )
+
+                last_price = novo
+
+        return bricks
+
+    # ======================================================
+    # RENKO TICK MODE
+    # ======================================================
+
+    def construir_renko_ticks(self, ticks) -> RenkoTickResult:
+
+        if ticks is None or len(ticks) < 2:
+            return RenkoTickResult([], None)
+
+        bricks: List[Brick] = []
+
+        last_price = float(ticks[0][3])
+
+        for tick in ticks[1:]:
+
+            price = float(tick[3])
+
+            while price - last_price >= self.brick_size:
+
+                novo = last_price + self.brick_size
+
+                bricks.append(
+                    Brick("up", last_price, novo)
+                )
+
+                last_price = novo
+
+            while last_price - price >= self.brick_size:
+
+                novo = last_price - self.brick_size
+
+                bricks.append(
+                    Brick("down", last_price, novo)
+                )
+
+                last_price = novo
+
+        # ------------------------------------------
+        # brick em formação
+        # ------------------------------------------
+
+        ultimo_preco = float(ticks[-1][3])
+
+        diferenca = ultimo_preco - last_price
+
+        em_formacao = None
 
         if abs(diferenca) > 0:
 
-            direction = "up" if diferenca > 0 else "down"
+            direcao = "up" if diferenca > 0 else "down"
 
             em_formacao = Brick(
-                direction,
-                preco_base,
-                ultimo_preco,
+                direction=direcao,
+                open=last_price,
+                close=ultimo_preco,
             )
-
-        else:
-
-            em_formacao = None
 
         return RenkoTickResult(
             confirmados=bricks,
