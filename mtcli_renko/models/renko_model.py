@@ -5,8 +5,9 @@ RenkoModel profissional.
 ✔ Tick mode híbrido (confirmados + em formação)
 ✔ Compatível com controller atual
 ✔ Funciona mesmo com mercado fechado
-✔ Correção de numpy truth value
-✔ Ancoragem estável na sessão
+✔ Correção numpy truth value
+✔ Correção timezone sessão
+✔ Path reconstruction institucional
 """
 
 from dataclasses import dataclass
@@ -69,7 +70,7 @@ class RenkoModel:
         if ultimo is None or len(ultimo) == 0:
             return None
 
-        ultimo_time = datetime.fromtimestamp(int(ultimo[0]["time"]))
+        ultimo_time = datetime.utcfromtimestamp(int(ultimo[0]["time"]))
         return ultimo_time.date()
 
     # ======================================================
@@ -77,12 +78,6 @@ class RenkoModel:
     # ======================================================
 
     def obter_rates(self, timeframe, quantidade, ancorar_abertura=False):
-        """
-        Obtém candles do MT5.
-
-        Se ancorar_abertura=True:
-        retorna apenas candles da sessão do último pregão disponível.
-        """
 
         with mt5_conexao():
 
@@ -110,7 +105,8 @@ class RenkoModel:
         # ----------------------------------------------------
 
         ultimo_ts = int(rates[-1]["time"])
-        ultimo_dia = datetime.fromtimestamp(ultimo_ts).date()
+
+        ultimo_dia = datetime.utcfromtimestamp(ultimo_ts).date()
 
         abertura = datetime.combine(
             ultimo_dia,
@@ -150,11 +146,11 @@ class RenkoModel:
         if last_time is None:
             return []
 
-        end_ts = int(datetime.now().timestamp())
+        end_ts = int(datetime.utcnow().timestamp())
 
         if ancorar_abertura:
 
-            data = datetime.fromtimestamp(last_time)
+            data = datetime.utcfromtimestamp(last_time)
 
             abertura = datetime.combine(
                 data.date(),
@@ -179,7 +175,7 @@ class RenkoModel:
         return rows[-max_ticks:]
 
     # ======================================================
-    # RENKO CANDLE
+    # RENKO CANDLE (PATH RECONSTRUCTION)
     # ======================================================
 
     def construir_renko(self, rates, modo="simples") -> List[Brick]:
@@ -193,36 +189,49 @@ class RenkoModel:
 
         for rate in rates[1:]:
 
+            open_p = float(rate["open"])
             high = float(rate["high"])
             low = float(rate["low"])
+            close = float(rate["close"])
 
-            while high - last_price >= self.brick_size:
+            # -------------------------------------------------
+            # PATH RECONSTRUCTION
+            # -------------------------------------------------
 
-                novo = last_price + self.brick_size
+            if close >= open_p:
+                path = [low, high, close]
+            else:
+                path = [high, low, close]
 
-                bricks.append(
-                    Brick(
-                        direction="up",
-                        open=last_price,
-                        close=novo,
+            for price in path:
+
+                while price - last_price >= self.brick_size:
+
+                    novo = last_price + self.brick_size
+
+                    bricks.append(
+                        Brick(
+                            direction="up",
+                            open=last_price,
+                            close=novo,
+                        )
                     )
-                )
 
-                last_price = novo
+                    last_price = novo
 
-            while last_price - low >= self.brick_size:
+                while last_price - price >= self.brick_size:
 
-                novo = last_price - self.brick_size
+                    novo = last_price - self.brick_size
 
-                bricks.append(
-                    Brick(
-                        direction="down",
-                        open=last_price,
-                        close=novo,
+                    bricks.append(
+                        Brick(
+                            direction="down",
+                            open=last_price,
+                            close=novo,
+                        )
                     )
-                )
 
-                last_price = novo
+                    last_price = novo
 
         return bricks
 
