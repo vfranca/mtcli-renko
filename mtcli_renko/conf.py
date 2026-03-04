@@ -289,6 +289,44 @@ reconstrução de Renko ancorado na abertura
 """
 BROKER_UTC_OFFSET = renko.get("broker_utc_offset", cast=int, default=-3)
 
+
+# ==========================================================
+# REPRESENTAÇÃO DOS BLOCOS
+# ==========================================================
+
+"""
+Texto utilizado para representar blocos Renko de alta.
+
+Este valor é utilizado pela camada de visualização (`view`)
+para exibir blocos no terminal.
+
+Pode ser alterado para adaptar a visualização a diferentes
+preferências ou necessidades de acessibilidade.
+
+Exemplos possíveis:
+
+    up
+    ▲
+    U
+    green
+"""
 BRICK_UP = renko.get("brick_up", default="up")
 
+
+"""
+Texto utilizado para representar blocos Renko de baixa.
+
+Assim como `BRICK_UP`, este valor controla apenas a forma
+como os blocos são exibidos no terminal.
+
+Alterar este valor **não afeta o cálculo do Renko**, apenas
+a representação visual.
+
+Exemplos possíveis:
+
+    down
+    ▼
+    D
+    red
+"""
 BRICK_DOWN = renko.get("brick_down", default="down")
