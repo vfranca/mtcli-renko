@@ -44,7 +44,7 @@ Issues = "https://github.com/vfranca/mtcli-renko/issues"
 Documentation = "https://vfranca.github.io/mtcli-renko"
 
 [project.entry-points."mtcli.plugins"]
-renko = "mtcli_renko.plugin:register"
+mtcli-renko = "mtcli_renko.plugin:register"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
