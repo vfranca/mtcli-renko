@@ -3,7 +3,7 @@ Renko view acessível.
 """
 
 import click
-from ..conf import DIGITS
+from ..conf import DIGITS, BRICK_UP, BRICK_DOWN
 
 
 def _detectar_padroes(bricks):
@@ -17,13 +17,13 @@ def _detectar_padroes(bricks):
     prev = bricks[-2].direction
     prev2 = bricks[-3].direction
 
-    if last == "up" and prev == "down":
+    if last == BRICK_UP and prev == BRICK_DOWN:
         patterns.append("H1")
 
-    if last == "up" and prev == "down" and prev2 == "up":
+    if last == BRICK_UP and prev == BRICK_DOWN and prev2 == BRICK_UP:
         patterns.append("H2")
 
-    if last == "down" and prev == "up" and prev2 == "down":
+    if last == BRICK_DOWN and prev == BRICK_UP and prev2 == BRICK_DOWN:
         patterns.append("L2")
 
     return patterns
@@ -31,8 +31,8 @@ def _detectar_padroes(bricks):
 
 def _metricas(bricks):
 
-    up = sum(1 for b in bricks if b.direction == "up")
-    down = sum(1 for b in bricks if b.direction == "down")
+    up = sum(1 for b in bricks if b.direction == BRICK_UP)
+    down = sum(1 for b in bricks if b.direction == BRICK_DOWN)
 
     return up, down
 

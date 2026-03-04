@@ -1,4 +1,4 @@
-[RENKO]
+[renko]
 symbol = WINJ26
 digits = 0
 period = M1
@@ -12,3 +12,5 @@ limit_bricks = 0
 session_open = 09:02
 session_open_offset_seconds = 47
 broker_utc_offset = -3
+brick_up = verde
+brick_down = vermelho

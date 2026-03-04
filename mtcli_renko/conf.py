@@ -288,3 +288,7 @@ filtragem de ticks da sessão
 reconstrução de Renko ancorado na abertura
 """
 BROKER_UTC_OFFSET = renko.get("broker_utc_offset", cast=int, default=-3)
+
+BRICK_UP = renko.get("brick_up", default="up")
+
+BRICK_DOWN = renko.get("brick_down", default="down")

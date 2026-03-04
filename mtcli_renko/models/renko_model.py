@@ -3,12 +3,12 @@ RenkoModel profissional.
 
 ✔ Candle mode determinístico
 ✔ Tick mode híbrido (confirmados + em formação)
-✔ Ancoragem correta na abertura da B3
-✔ Ajuste UTC da corretora
-✔ Margem de segurança na abertura
-✔ Reconstrução de caminho do candle (path reconstruction)
-✔ Compatível com controller atual
-✔ Funciona mesmo com mercado fechado
+Ancoragem correta na abertura da B3
+Ajuste UTC da corretora
+Margem de segurança na abertura
+Reconstrução de caminho do candle (path reconstruction)
+Compatível com controller atual
+Funciona mesmo com mercado fechado
 """
 
 from dataclasses import dataclass
@@ -20,7 +20,7 @@ import MetaTrader5 as mt5
 from mtcli.mt5_context import mt5_conexao
 from mtcli.logger import setup_logger
 from mtcli.marketdata.tick_repository import TickRepository
-from ..conf import SESSION_OPEN, SESSION_OPEN_OFFSET_SECONDS, BROKER_UTC_OFFSET
+from ..conf import SESSION_OPEN, SESSION_OPEN_OFFSET_SECONDS, BROKER_UTC_OFFSET, BRICK_UP, BRICK_DOWN
 
 log = setup_logger(__name__)
 
@@ -197,7 +197,7 @@ class RenkoModel:
                     novo = last_price + self.brick_size
 
                     bricks.append(
-                        Brick("up", last_price, novo)
+                        Brick(BRICK_UP, last_price, novo)
                     )
 
                     last_price = novo
@@ -207,7 +207,7 @@ class RenkoModel:
                     novo = last_price - self.brick_size
 
                     bricks.append(
-                        Brick("down", last_price, novo)
+                        Brick(BRICK_DOWN, last_price, novo)
                     )
 
                     last_price = novo
@@ -236,7 +236,7 @@ class RenkoModel:
                 novo = last_price + self.brick_size
 
                 bricks.append(
-                    Brick("up", last_price, novo)
+                    Brick(BRICK_UP, last_price, novo)
                 )
 
                 last_price = novo
@@ -246,7 +246,7 @@ class RenkoModel:
                 novo = last_price - self.brick_size
 
                 bricks.append(
-                    Brick("down", last_price, novo)
+                    Brick(BRICK_DOWN, last_price, novo)
                 )
 
                 last_price = novo
@@ -261,7 +261,7 @@ class RenkoModel:
 
         if abs(diferenca) > 0:
 
-            direcao = "up" if diferenca > 0 else "down"
+            direcao = BRICK_UP if diferenca > 0 else BRICK_DOWN
 
             em_formacao = Brick(
                 direction=direcao,
