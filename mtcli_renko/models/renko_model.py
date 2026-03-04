@@ -3,24 +3,24 @@ RenkoModel profissional.
 
 ✔ Candle mode determinístico
 ✔ Tick mode híbrido (confirmados + em formação)
+✔ Ancoragem correta na abertura da B3
+✔ Ajuste UTC da corretora
+✔ Margem de segurança na abertura
+✔ Reconstrução de caminho do candle (path reconstruction)
 ✔ Compatível com controller atual
 ✔ Funciona mesmo com mercado fechado
-✔ Correção numpy truth value
-✔ Correção timezone sessão
-✔ Path reconstruction institucional
 """
 
 from dataclasses import dataclass
 from typing import List, Optional, NamedTuple
-from zoneinfo import ZoneInfo
-from datetime import datetime, time as dtime
+from datetime import datetime, time as dtime, timedelta
 
 import MetaTrader5 as mt5
 
 from mtcli.mt5_context import mt5_conexao
 from mtcli.logger import setup_logger
 from mtcli.marketdata.tick_repository import TickRepository
-from ..conf import SESSION_OPEN
+from ..conf import SESSION_OPEN, SESSION_OPEN_OFFSET_SECONDS, BROKER_UTC_OFFSET
 
 log = setup_logger(__name__)
 
@@ -54,25 +54,21 @@ class RenkoModel:
         self.repo = TickRepository()
 
     # ======================================================
-    # AUXILIAR
+    # UTIL
     # ======================================================
 
-    def _ultimo_pregao_data(self, timeframe):
+    def _session_start_timestamp(self, data):
 
-        with mt5_conexao():
+        abertura_b3 = datetime.combine(
+            data,
+            dtime.fromisoformat(SESSION_OPEN),
+        )
 
-            ultimo = mt5.copy_rates_from_pos(
-                self.symbol,
-                timeframe,
-                0,
-                1,
-            )
+        abertura_utc = abertura_b3 + timedelta(hours=BROKER_UTC_OFFSET)
 
-        if ultimo is None or len(ultimo) == 0:
-            return None
+        abertura_utc += timedelta(seconds=SESSION_OPEN_OFFSET_SECONDS)
 
-        ultimo_time = datetime.utcfromtimestamp(int(ultimo[0]["time"]))
-        return ultimo_time.date()
+        return int(abertura_utc.timestamp())
 
     # ======================================================
     # RATES (CANDLE MODE)
@@ -101,27 +97,11 @@ class RenkoModel:
         if not ancorar_abertura:
             return rates
 
-        # ----------------------------------------------------
-        # ANCORAGEM NA ÚLTIMA SESSÃO DISPONÍVEL
-        # ----------------------------------------------------
-
-        from datetime import timedelta
-
         ultimo_ts = int(rates[-1]["time"])
 
-        ultimo_dt = datetime.fromtimestamp(ultimo_ts)
+        ultimo_dia = datetime.utcfromtimestamp(ultimo_ts).date()
 
-        ultimo_dia = ultimo_dt.date()
-
-        abertura = datetime.combine(
-            ultimo_dia,
-            dtime.fromisoformat(SESSION_OPEN),
-        )
-
-        # ajuste B3 -> UTC
-        abertura = abertura - timedelta(hours=3)
-
-        abertura_ts = int(abertura.timestamp())
+        abertura_ts = self._session_start_timestamp(ultimo_dia)
 
         filtrados = []
 
@@ -140,8 +120,6 @@ class RenkoModel:
 
     def obter_ticks(self, max_ticks=5000, ancorar_abertura=False):
 
-        from datetime import timedelta
-
         last_time = self.repo._get_last_tick_time(self.symbol)
 
         if last_time is None:
@@ -156,25 +134,13 @@ class RenkoModel:
         if last_time is None:
             return []
 
-        end_ts = int(datetime.now().timestamp())
+        end_ts = int(datetime.utcnow().timestamp())
 
         if ancorar_abertura:
 
-            data = datetime.fromtimestamp(last_time)
+            data = datetime.utcfromtimestamp(last_time).date()
 
-            # 09:00 horário B3
-            abertura_b3 = datetime.combine(
-                data.date(),
-                datetime.strptime(SESSION_OPEN, "%H:%M").time(),
-            )
-
-            # converter B3 (UTC-3) → UTC
-            abertura_utc = abertura_b3 - timedelta(hours=3)
-
-            # margem de segurança
-            abertura_utc = abertura_utc + timedelta(seconds=50)
-
-            start_ts = int(abertura_utc.timestamp())
+            start_ts = self._session_start_timestamp(data)
 
         else:
 
@@ -192,7 +158,23 @@ class RenkoModel:
         return rows[-max_ticks:]
 
     # ======================================================
-    # RENKO CANDLE (PATH RECONSTRUCTION)
+    # PATH RECONSTRUCTION
+    # ======================================================
+
+    def _reconstruir_path(self, rate):
+
+        o = float(rate["open"])
+        h = float(rate["high"])
+        l = float(rate["low"])
+        c = float(rate["close"])
+
+        if c >= o:
+            return [o, l, h, c]
+
+        return [o, h, l, c]
+
+    # ======================================================
+    # RENKO CANDLE
     # ======================================================
 
     def construir_renko(self, rates, modo="simples") -> List[Brick]:
@@ -206,19 +188,7 @@ class RenkoModel:
 
         for rate in rates[1:]:
 
-            open_p = float(rate["open"])
-            high = float(rate["high"])
-            low = float(rate["low"])
-            close = float(rate["close"])
-
-            # -------------------------------------------------
-            # PATH RECONSTRUCTION
-            # -------------------------------------------------
-
-            if close >= open_p:
-                path = [low, high, close]
-            else:
-                path = [high, low, close]
+            path = self._reconstruir_path(rate)
 
             for price in path:
 
@@ -227,11 +197,7 @@ class RenkoModel:
                     novo = last_price + self.brick_size
 
                     bricks.append(
-                        Brick(
-                            direction="up",
-                            open=last_price,
-                            close=novo,
-                        )
+                        Brick("up", last_price, novo)
                     )
 
                     last_price = novo
@@ -241,11 +207,7 @@ class RenkoModel:
                     novo = last_price - self.brick_size
 
                     bricks.append(
-                        Brick(
-                            direction="down",
-                            open=last_price,
-                            close=novo,
-                        )
+                        Brick("down", last_price, novo)
                     )
 
                     last_price = novo
@@ -289,9 +251,7 @@ class RenkoModel:
 
                 last_price = novo
 
-        # ------------------------------------------
         # brick em formação
-        # ------------------------------------------
 
         ultimo_preco = float(ticks[-1][3])
 

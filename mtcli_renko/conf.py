@@ -1,103 +1,290 @@
 """
-conf.py
+Configurações do plugin mtcli-renko.
 
-Módulo de configuração do plugin mtcli-delta.
+Este módulo centraliza o carregamento das configurações utilizadas pelo
+plugin Renko a partir do arquivo de configuração do mtcli (mtcli.ini).
 
-Responsável por:
+As configurações são lidas através do sistema de configuração global
+do mtcli:
 
-- Ler configurações do arquivo mtcli.ini
-- Utilizar a seção [RENKO]
-- Permitir override por variáveis de ambiente
-- Definir valores padrão seguros
+    from mtcli.conf import conf
 
-Ordem de precedência:
+Cada parâmetro é obtido da seção:
 
-1. Variáveis de ambiente
-2. Seção [RENKO] do mtcli.ini
-3. Seção [DEFAULT] do mtcli.ini
-4. Valores padrão definidos no código
+    [renko]
+
+Caso a configuração não exista no arquivo de configuração do usuário,
+um valor padrão seguro é utilizado.
+
+Exemplo de configuração no mtcli.ini:
+
+    [renko]
+
+    symbol = WIN$N
+    digits = 0
+    period = m1
+    data_mode = tick
+    bars = 500
+    brick = 60
+    max_ticks = 500000
+    tick_style = hibrido
+    modo = simples
+    limit_bricks = 200
+    session_open = 09:00
+    session_open_offset_seconds = -47
+    ancorar_abertura = true
+
+Essas configurações controlam:
+
+ fonte de dados (tick ou candle)
+ tamanho do bloco Renko
+ modo de construção
+ comportamento da ancoragem na abertura do pregão
 """
 
-import os
-from mtcli.conf import config
+from mtcli.conf import conf
 
 
-def _get_config_value(section: str, key: str, fallback):
-    """
-    Obtém valor do arquivo de configuração com fallback seguro.
+# ==========================================================
+# SEÇÃO DE CONFIGURAÇÃO
+# ==========================================================
 
-    Ordem:
-    - Se existir na seção informada
-    - Se existir em DEFAULT
-    - Caso contrário usa fallback
+"""
+Seção `[renko]` do arquivo mtcli.ini.
 
-    :param section: Nome da seção no ini.
-    :param key: Nome da chave.
-    :param fallback: Valor padrão final.
-    :return: Valor encontrado ou fallback.
-    """
-    if config.has_section(section) and key in config[section]:
-        return config[section].get(key, fallback=fallback)
-
-    return config["DEFAULT"].get(key, fallback=fallback)
+Todas as configurações deste plugin são carregadas a partir desta seção.
+"""
+renko = conf.section("renko")
 
 
-# -------------------------------------------------------
-# Leitura da seção [RENKO] do mtcli.ini
-# -------------------------------------------------------
+# ==========================================================
+# ATIVO
+# ==========================================================
 
-SYMBOL = os.getenv(
-    "SYMBOL",
-    _get_config_value("RENKO", "symbol", "WIN$N")
+"""
+Símbolo utilizado para construção do Renko.
+
+Exemplo:
+    WIN$N
+    WDO$N
+    PETR4
+"""
+SYMBOL = renko.get("symbol", default="WIN$N")
+
+
+# ==========================================================
+# FORMATAÇÃO DE PREÇO
+# ==========================================================
+
+"""
+Número de dígitos após o ponto decimal utilizados na exibição
+dos preços.
+
+Exemplo:
+
+    0  →  123456
+    2  →  1234.56
+"""
+DIGITS = renko.get("digits", cast=int, default=0)
+
+
+# ==========================================================
+# TIMEFRAME BASE (MODO CANDLE)
+# ==========================================================
+
+"""
+Timeframe utilizado para obter candles quando o modo de dados
+é configurado como `candle`.
+
+Exemplos comuns:
+
+    m1
+    m5
+    m15
+"""
+PERIOD = renko.get("period", default="m1")
+
+
+# ==========================================================
+# MODO DE DADOS
+# ==========================================================
+
+"""
+Fonte de dados utilizada para construção do Renko.
+
+Valores possíveis:
+
+    tick   -  usa ticks individuais (mais preciso)
+    candle  - usa candles OHLC
+
+O modo tick permite reconstrução mais fiel da sequência
+de movimentos do preço.
+"""
+DATA_MODE = renko.get("data_mode", default="tick")
+
+
+# ==========================================================
+# QUANTIDADE DE CANDLES
+# ==========================================================
+
+"""
+Quantidade de candles carregados quando DATA_MODE=candle.
+
+Valores maiores permitem reconstrução mais longa do histórico
+de blocos Renko.
+"""
+BARS = renko.get("bars", cast=int, default=566)
+
+
+# ==========================================================
+# TAMANHO DO BLOCO RENKO
+# ==========================================================
+
+"""
+Tamanho do bloco Renko.
+
+Exemplo:
+
+    60 - bloco de 60 pontos
+"""
+BRICK = renko.get("brick", cast=float, default=60)
+
+
+# ==========================================================
+# LIMITE DE TICKS
+# ==========================================================
+
+"""
+Quantidade máxima de ticks utilizados na reconstrução
+do Renko no modo tick.
+
+Valores grandes permitem reconstrução profunda,
+mas aumentam consumo de memória e CPU.
+"""
+MAX_TICKS = renko.get("max_ticks", cast=int, default=5000000)
+
+
+# ==========================================================
+# ESTILO RENKO BASEADO EM TICKS
+# ==========================================================
+
+"""
+Define o estilo de reconstrução Renko quando DATA_MODE=tick.
+
+Valores possíveis:
+
+    estrutural
+    agressivo
+    hibrido
+
+O modo híbrido normalmente produz melhor equilíbrio entre
+sensibilidade e estabilidade estrutural.
+"""
+TICK_STYLE = renko.get("tick_style", default="hibrido")
+
+
+# ==========================================================
+# MODO RENKO
+# ==========================================================
+
+"""
+Algoritmo de construção dos blocos Renko.
+
+Valores possíveis:
+
+    simples
+    classico
+
+Dependendo da estratégia, o modo clássico pode exigir
+movimento adicional para reversão.
+"""
+MODO = renko.get("modo", default="simples")
+
+
+# ==========================================================
+# LIMITE DE BLOCOS EXIBIDOS
+# ==========================================================
+
+"""
+Quantidade máxima de blocos Renko exibidos no terminal.
+
+Valores:
+
+    0 - exibe todos os blocos
+"""
+LIMIT_BRICKS = renko.get("limit_bricks", cast=int, default=0)
+
+
+# ==========================================================
+# ABERTURA DO PREGÃO
+# ==========================================================
+
+"""
+Hora oficial de abertura da sessão de negociação.
+
+Formato:
+
+    HH:MM
+
+Exemplo:
+
+    09:00
+"""
+SESSION_OPEN = renko.get("session_open", default="09:00")
+
+
+# ==========================================================
+# OFFSET DE SEGUNDOS DA ABERTURA
+# ==========================================================
+
+"""
+Offset aplicado ao horário de abertura do pregão.
+
+Usado para compensar diferenças entre:
+
+horário da corretora (UTC)
+horário local da bolsa (B3)
+
+Exemplo:
+
+    -47  → ignora primeiros 47 segundos da sessão
+"""
+SESSION_OPEN_OFFSET_SECONDS = renko.get(
+    "session_open_offset_seconds",
+    cast=int,
+    default=0,
 )
 
-BRICK = float(os.getenv(
-    "BRICK",
-    _get_config_value("RENKO", "brick", 50)
-))
 
-PERIOD = os.getenv(
-    "PERIOD",
-    _get_config_value("RENKO", "period", "M5")
-)
+# ==========================================================
+# OFFSET UTC DA CORRETORA
+# ==========================================================
 
-BARS = int(os.getenv(
-    "BARS",
-    _get_config_value("RENKO", "bars", 500)
-))
+"""
+Diferença entre o horário do servidor da corretora e o horário UTC.
 
-DIGITS = int(os.getenv(
-    "DIGITS",
-    _get_config_value("RENKO", "digits", 2)
-))
+Algumas corretoras fornecem timestamps em UTC puro enquanto
+outras utilizam horário local do servidor.
 
-# Hora oficial de abertura do pregão (HH:MM)
-SESSION_OPEN = os.getenv(
-    "SESSION_OPEN",
-    _get_config_value("RENKO", "session_open", "09:00")
-)
+Este parâmetro permite ajustar essa diferença para que cálculos
+baseados em horário (como a ancoragem na abertura do pregão)
+sejam feitos corretamente.
 
-DATA_MODE = os.getenv(
-    "DATA_MODE",
-    _get_config_value("RENKO", "data_mode", "candle")
-)
+Exemplo para a B3:
 
-MAX_TICKS = int(os.getenv(
-    "MAX_TICKS",
-    _get_config_value("RENKO", "max_ticks", 10000)
-))
+    broker_utc_offset = -3
 
-TICK_STYLE = os.getenv(
-    "TICK_STYLE",
-    _get_config_value("RENKO", "tick_style", "hibrido")
-)
+Isso significa que o horário da bolsa está **3 horas atrás do UTC**.
 
-MODO = os.getenv(
-    "MODO",
-    _get_config_value("RENKO", "modo", "simples")
-)
+Exemplo prático:
 
-LIMIT_BRICKS = int(os.getenv(
-    "LIMIT_BRICKS",
-    _get_config_value("RENKO", "limit_bricks", 0)
-))
+    UTC           - 12:00
+    B3 (offset -3) - 09:00
+
+Esse valor é utilizado principalmente nos cálculos de:
+
+`SESSION_OPEN`
+filtragem de ticks da sessão
+reconstrução de Renko ancorado na abertura
+"""
+BROKER_UTC_OFFSET = renko.get("broker_utc_offset", cast=int, default=-3)

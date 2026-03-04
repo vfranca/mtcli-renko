@@ -1,12 +1,14 @@
 [RENKO]
 symbol = WINJ26
 digits = 0
-brick = 60
 period = M1
 bars = 0
-session_open = 09:00
 data_mode = tick
 max_ticks = 5000000
 tick_style = hibrido
 modo = simples
+brick = 60
 limit_bricks = 0
+session_open = 09:02
+session_open_offset_seconds = 47
+broker_utc_offset = -3
