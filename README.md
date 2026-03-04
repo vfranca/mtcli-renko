@@ -1,211 +1,397 @@
 # mtcli-renko
 
-Renko institucional para MetaTrader 5 integrado ao ecossistema `mtcli`.
+Plugin Renko para o **mtcli**.
 
-Geração de gráfico Renko em modo texto (terminal), com:
+O **mtcli-renko** adiciona ao CLI `mt` a capacidade de gerar **gráficos Renko diretamente no terminal**, utilizando dados do **MetaTrader 5** ou de outras fontes configuradas no `mtcli`.
 
-- Renko simples
-- Renko clássico (reversão 2x)
-- Ancoragem real no último pregão
-- Controle de barras por sessão
-- Compatível com B3, Forex e ativos 24h
-- Ideal para uso via CLI e automação
+O plugin suporta geração de Renko baseada em **ticks ou candles**, diferentes **estilos de cálculo**, e recursos úteis para análise de fluxo e price action.
 
 ---
 
-## Instalação
+# Características
 
-Via pip:
+* geração de **Renko a partir de ticks**
+* geração de **Renko a partir de candles**
+* suporte a **Renko estrutural, agressivo e híbrido**
+* opção de **ancorar os blocos na abertura do pregão**
+* compatível com **plugins e arquitetura modular do mtcli**
+* saída em **texto puro**, ideal para terminal e leitores de tela
+
+---
+
+# Requisitos
+
+* Python 3.10+
+* MetaTrader 5 instalado
+* mtcli instalado
+
+Projeto relacionado:
+
+* [https://github.com/mtcli/mtcli](https://github.com/mtcli/mtcli)
+
+---
+
+# Instalação
+
+Instale via pip:
 
 ```bash
 pip install mtcli-renko
-````
+```
 
-Ou via Poetry:
+ou usando poetry:
 
 ```bash
 poetry add mtcli-renko
 ```
 
----
-
-## Requisitos
-
-* Python 3.10+
-* MetaTrader 5 instalado
-* Conta conectada ao terminal MT5
-* Plugin `mtcli` configurado
+Após a instalação o plugin será automaticamente carregado pelo **mtcli**.
 
 ---
 
-## Uso
+# Comando
 
-Após instalar, o comando fica disponível dentro do `mt`:
+O plugin adiciona o comando:
+
+```
+mt rk
+```
+
+Exemplo:
 
 ```bash
-mt renko --symbol WINJ26 --brick 50
+mt rk
+```
+
+Também é possível informar parâmetros:
+
+```bash
+mt rk --brick 60
 ```
 
 ---
 
-## Parâmetros
+# Exemplo de saída
 
-| Opção                | Descrição                         |
-| -------------------- | --------------------------------- |
-| `--symbol`, `-s`     | Ativo (ex: WINJ26)                |
-| `--brick`, `-b`      | Tamanho do brick                  |
-| `--timeframe`, `-t`  | Timeframe (m1, m5, m15, h1, etc.) |
-| `--bars`, `-n`       | Quantidade de barras base         |
-| `--modo`             | `simples` ou `classico`           |
-| `--ancorar-abertura` | Ancora no último pregão           |
-
----
-
-## Exemplos
-
-### Renko simples padrão
-
-```bash
-mt renko -s WINJ26 -b 50
 ```
-
-### Renko clássico (reversão 2x)
-
-```bash
-mt renko -s WINJ26 -b 50 --modo classico
-```
-
-### Ancorado no último pregão
-
-```bash
-mt renko -s WINJ26 -b 50 --ancorar-abertura
-```
-
-### Todas as barras do último pregão
-
-```bash
-mt renko -s WINJ26 -b 50 --ancorar-abertura --bars 0
-```
-
-### Últimas 20 barras do último pregão
-
-```bash
-mt renko -s WINJ26 -b 50 --ancorar-abertura --bars 20
+#   time                open    close
+1   2026-01-10 09:01    128900  128960
+2   2026-01-10 09:02    128960  129020
+3   2026-01-10 09:04    129020  129080
 ```
 
 ---
 
-## Timeframes aceitos
+# Configuração
 
-Use valores simplificados:
+As configurações podem ser definidas no arquivo:
 
-* m1
-* m5
-* m15
-* m30
-* h1
-* h4
-* d1
+```
+mtcli.ini
+```
 
-O sistema faz o mapeamento automático para as constantes do MetaTrader 5.
+Seção:
+
+```
+[renko]
+```
+
+Exemplo completo:
+
+```
+[renko]
+
+symbol = WIN$N
+digits = 0
+
+period = m1
+data_mode = tick
+
+bars = 566
+
+brick = 60
+
+max_ticks = 5000000
+
+tick_style = hibrido
+
+modo = simples
+
+limit_bricks = 0
+
+session_open = 09:00
+
+session_open_offset_seconds = 0
+
+broker_utc_offset = -3
+
+ancorar_abertura = false
+```
 
 ---
 
-## Ancoragem Institucional
+# Parâmetros
 
-Quando `--ancorar-abertura` é ativado:
+### symbol
 
-* Detecta o último candle disponível
-* Descobre a data do último pregão real
-* Filtra manualmente apenas aquele dia
-* Ignora histórico anterior
-* Funciona inclusive em domingos e feriados
+Ativo utilizado para gerar o Renko.
 
-Comportamento:
+Exemplo:
 
-* `--bars 0` → todas as barras do último pregão
-* `--bars N` → últimas N barras daquele pregão
+```
+symbol = WIN$N
+```
 
 ---
 
-## Modos de Construção
+### digits
 
-### Simples
+Número de casas decimais do ativo.
 
-Cria bricks contínuos sem regra de reversão 2x.
+Exemplo:
 
-### Clássico
-
-Implementa reversão apenas quando o preço move 2x o tamanho do brick na direção oposta.
+```
+digits = 0
+```
 
 ---
 
-## Estrutura do Projeto
+### period
+
+Timeframe usado quando o modo de dados é `candle`.
+
+Exemplo:
+
+```
+period = m1
+```
+
+---
+
+### data_mode
+
+Define a fonte de dados utilizada.
+
+Valores possíveis:
+
+```
+tick
+candle
+```
+
+---
+
+### bars
+
+Quantidade de candles usados para cálculo no modo candle.
+
+---
+
+### brick
+
+Tamanho do bloco Renko.
+
+Exemplo:
+
+```
+brick = 60
+```
+
+---
+
+### max_ticks
+
+Limite máximo de ticks carregados quando `data_mode = tick`.
+
+Isso evita consumo excessivo de memória.
+
+---
+
+### tick_style
+
+Define o estilo de Renko baseado em ticks.
+
+Valores possíveis:
+
+```
+estrutural
+agressivo
+hibrido
+```
+
+---
+
+### modo
+
+Modo de geração do Renko.
+
+Valores possíveis:
+
+```
+simples
+classico
+```
+
+---
+
+### limit_bricks
+
+Limita a quantidade de blocos exibidos.
+
+Exemplo:
+
+```
+limit_bricks = 200
+```
+
+---
+
+### session_open
+
+Hora oficial de abertura do pregão.
+
+Formato:
+
+```
+HH:MM
+```
+
+Exemplo:
+
+```
+session_open = 09:00
+```
+
+---
+
+### session_open_offset_seconds
+
+Margem de segurança aplicada à abertura do pregão.
+
+Isso ajuda a evitar problemas quando os primeiros ticks chegam alguns segundos após a abertura oficial.
+
+Exemplo:
+
+```
+session_open_offset_seconds = 47
+```
+
+---
+
+### broker_utc_offset
+
+Offset UTC do servidor da corretora.
+
+Exemplo:
+
+```
+broker_utc_offset = -3
+```
+
+---
+
+### ancorar_abertura
+
+Quando ativado, os blocos Renko são **ancorados na abertura do pregão**.
+
+Exemplo:
+
+```
+ancorar_abertura = true
+```
+
+---
+
+# Exemplos
+
+### Renko padrão
+
+```
+mt rk
+```
+
+---
+
+### Renko com brick diferente
+
+```
+mt rk --brick 30
+```
+
+---
+
+### Limitar blocos exibidos
+
+```
+mt rk --limit-bricks 200
+```
+
+---
+
+# Arquitetura
+
+O plugin segue arquitetura MVC:
 
 ```
 mtcli_renko/
-│
-├── commands/
-├── controllers/
-├── models/
-├── views/
-├── conf.py
-└── enums.py
+
+commands/
+    renko.py
+
+controllers/
+    renko_controller.py
+
+models/
+    renko_model.py
+
+views/
+    renko_view.py
+
+conf.py
+plugin.py
 ```
 
-Arquitetura baseada em MVC, alinhada ao padrão do `mtcli-trade`.
+Essa estrutura facilita:
+
+* manutenção
+* testes automatizados
+* evolução do plugin
 
 ---
 
-## Casos de Uso
+# Desenvolvimento
 
-* Leitura de estrutura (H1, H2, H3, L1, L2)
-* Identificação de BRF / BLF
-* Automação de análise
-* Backtesting via script
-* Operação institucional via terminal
+Clone o repositório:
 
----
+```
+git clone https://github.com/mtcli/mtcli-renko
+```
 
-## Compatibilidade
+Instale em modo desenvolvimento:
 
-* B3 (ex: WIN, WDO)
-* Forex
-* Cripto
-* Ativos 24h
+```
+poetry install
+```
 
 ---
 
-## Roadmap
+# Testes
 
-* [ ] Múltiplas sessões
-* [ ] Filtro de horário (09:00–18:00)
-* [ ] VWAP integrada
-* [ ] Detecção automática de estrutura (H1/H2/L2)
-* [ ] Exportação CSV
+Execute:
+
+```
+pytest
+```
 
 ---
 
-## Licença
+# Licença
 
 MIT License
 
 ---
 
-## Autor
+# Autor
 
 Valmir França
 
----
-
-## Contribuição
-
-Pull requests são bem-vindos.
-Para mudanças maiores, abra uma issue antes para discussão.
-
----
-
-## Aviso
-
-Este software não constitui recomendação de investimento.
-Uso por conta e risco do operador.
