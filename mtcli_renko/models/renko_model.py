@@ -1,35 +1,26 @@
 """
-Renko model do plugin mtcli-renko.
+RenkoModel profissional.
 
-Responsável por:
-
-Coleta de dados do MetaTrader 5
-Filtragem de dados da sessão
-Construção de blocos Renko
-Suporte a modo candle e modo tick
-
-Características:
-
-Renko determinístico em candle mode
-Renko híbrido em tick mode
-Brick em formação em tempo real
-Compatível com arquitetura MVC do mtcli
+✔ Candle mode determinístico
+✔ Tick mode híbrido (confirmados + em formação)
+✔ Ancoragem correta na abertura da B3
+✔ Ajuste UTC da corretora
+✔ Margem de segurança na abertura
+✔ Reconstrução de caminho do candle (path reconstruction)
+✔ Compatível com controller atual
+✔ Funciona mesmo com mercado fechado
 """
 
 from dataclasses import dataclass
 from typing import List, Optional, NamedTuple
-from datetime import datetime, timedelta
+from datetime import datetime, time as dtime, timedelta
 
 import MetaTrader5 as mt5
 
 from mtcli.mt5_context import mt5_conexao
 from mtcli.logger import setup_logger
-
-from ..conf import (
-    SESSION_OPEN,
-    SESSION_OPEN_OFFSET_SECONDS,
-    BROKER_UTC_OFFSET,
-)
+from mtcli.marketdata.tick_repository import TickRepository
+from ..conf import SESSION_OPEN, SESSION_OPEN_OFFSET_SECONDS, BROKER_UTC_OFFSET
 
 log = setup_logger(__name__)
 
@@ -39,42 +30,15 @@ log = setup_logger(__name__)
 # ==========================================================
 
 @dataclass
-class RenkoBrick:
-    """
-    Representa um bloco Renko.
-
-    Attributes
-    ----------
-    direction : str
-        Direção do bloco ("up" ou "down")
-
-    open : float
-        Preço de abertura do bloco.
-
-    close : float
-        Preço de fechamento do bloco.
-    """
-
+class Brick:
     direction: str
     open: float
     close: float
 
 
-class RenkoResult(NamedTuple):
-    """
-    Resultado da construção Renko em modo tick.
-
-    Attributes
-    ----------
-    confirmados : list[RenkoBrick]
-        Lista de blocos já confirmados.
-
-    em_formacao : RenkoBrick | None
-        Bloco parcial ainda em formação.
-    """
-
-    confirmados: List[RenkoBrick]
-    em_formacao: Optional[RenkoBrick]
+class RenkoTickResult(NamedTuple):
+    confirmados: List[Brick]
+    em_formacao: Optional[Brick]
 
 
 # ==========================================================
@@ -82,307 +46,230 @@ class RenkoResult(NamedTuple):
 # ==========================================================
 
 class RenkoModel:
-    """
-    Modelo responsável pela construção do gráfico Renko.
-    """
-
-    MAX_BRICKS_PER_TICK = 500
 
     def __init__(self, symbol: str, brick_size: float):
+
         self.symbol = symbol
         self.brick_size = brick_size
+        self.repo = TickRepository()
 
     # ======================================================
-    # UTILIDADES
+    # UTIL
     # ======================================================
 
-    def _ultimo_pregao_data(self, timeframe):
-        """
-        Obtém a data do último pregão disponível.
-        """
+    def _session_start_timestamp(self, data):
 
-        ultimo = mt5.copy_rates_from_pos(
-            self.symbol,
-            timeframe,
-            0,
-            1,
+        abertura_b3 = datetime.combine(
+            data,
+            dtime.fromisoformat(SESSION_OPEN),
         )
 
-        if ultimo is None or len(ultimo) == 0:
-            return None
+        abertura_utc = abertura_b3 + timedelta(hours=BROKER_UTC_OFFSET)
 
-        ultimo_time = datetime.fromtimestamp(ultimo[0]["time"])
-        return ultimo_time.date()
+        abertura_utc += timedelta(seconds=SESSION_OPEN_OFFSET_SECONDS)
 
-    def _calcular_abertura(self, data_pregao):
-        """
-        Calcula o horário de abertura da sessão considerando:
-
-        horário oficial da bolsa
-        offset UTC da corretora
-        offset adicional de segurança
-        """
-
-        hora = datetime.strptime(SESSION_OPEN, "%H:%M")
-
-        abertura = datetime.combine(
-            data_pregao,
-            hora.time(),
-        )
-
-        abertura += timedelta(hours=BROKER_UTC_OFFSET)
-        abertura += timedelta(seconds=SESSION_OPEN_OFFSET_SECONDS)
-
-        return abertura
+        return int(abertura_utc.timestamp())
 
     # ======================================================
     # RATES (CANDLE MODE)
     # ======================================================
 
-    def obter_rates(self, timeframe, quantidade: int, ancorar_abertura=False):
-        """
-        Obtém candles do MetaTrader 5.
-        """
+    def obter_rates(self, timeframe, quantidade, ancorar_abertura=False):
 
         with mt5_conexao():
 
             if not mt5.symbol_select(self.symbol, True):
                 raise RuntimeError(f"Erro ao selecionar símbolo {self.symbol}")
 
-            if not ancorar_abertura:
+            if quantidade == 0:
+                quantidade = 1000
 
-                if quantidade == 0:
-                    quantidade = 1000
-
-                rates = mt5.copy_rates_from_pos(
-                    self.symbol,
-                    timeframe,
-                    0,
-                    quantidade,
-                )
-
-                return rates or []
-
-            data_pregao = self._ultimo_pregao_data(timeframe)
-
-            if data_pregao is None:
-                return []
-
-            abertura = self._calcular_abertura(data_pregao)
-
-            bruto = mt5.copy_rates_from_pos(
+            rates = mt5.copy_rates_from_pos(
                 self.symbol,
                 timeframe,
                 0,
-                999,
+                quantidade,
             )
 
-            if bruto is None:
-                return []
+        if rates is None or len(rates) == 0:
+            return []
 
-            filtrado = []
+        if not ancorar_abertura:
+            return rates
 
-            for r in bruto:
+        ultimo_ts = int(rates[-1]["time"])
 
-                r_time = datetime.fromtimestamp(r["time"])
+        ultimo_dia = datetime.utcfromtimestamp(ultimo_ts).date()
 
-                if r_time >= abertura:
-                    filtrado.append(r)
+        abertura_ts = self._session_start_timestamp(ultimo_dia)
 
-            if quantidade == 0:
-                return filtrado
+        filtrados = []
 
-            return filtrado[-quantidade:]
+        for r in rates:
+
+            ts = int(r["time"])
+
+            if ts >= abertura_ts:
+                filtrados.append(r)
+
+        return filtrados
 
     # ======================================================
-    # TICKS
+    # TICKS (BANCO + MT5)
     # ======================================================
 
     def obter_ticks(self, max_ticks=5000, ancorar_abertura=False):
-        """
-        Obtém ticks do MetaTrader 5.
 
-        Parameters
-        ----------
-        max_ticks : int
-            Número máximo de ticks retornados.
+        last_time = self.repo._get_last_tick_time(self.symbol)
 
-        ancorar_abertura : bool
-            Se True, filtra ticks a partir da abertura da sessão.
-        """
+        if last_time is None:
 
-        with mt5_conexao():
+            self.repo.sync(self.symbol, days_back=3)
+            last_time = self.repo._get_last_tick_time(self.symbol)
 
-            if not mt5.symbol_select(self.symbol, True):
-                raise RuntimeError(f"Erro ao selecionar símbolo {self.symbol}")
+        else:
 
-            agora = datetime.utcnow()
+            self.repo.sync(self.symbol)
 
-            # ------------------------------------------
-            # definir início
-            # ------------------------------------------
+        if last_time is None:
+            return []
 
-            if ancorar_abertura:
+        end_ts = int(datetime.utcnow().timestamp())
 
-                data = agora.date()
+        if ancorar_abertura:
 
-                abertura = datetime.combine(
-                    data,
-                    datetime.strptime(SESSION_OPEN, "%H:%M").time(),
-                )
+            data = datetime.utcfromtimestamp(last_time).date()
 
-                abertura += timedelta(hours=BROKER_UTC_OFFSET)
-                abertura += timedelta(seconds=SESSION_OPEN_OFFSET_SECONDS)
+            start_ts = self._session_start_timestamp(data)
 
-                inicio = abertura
+        else:
 
-            else:
+            start_ts = 0
 
-                inicio = agora - timedelta(hours=24)
+        rows = self.repo.get_ticks_between(
+            self.symbol,
+            start_ts,
+            end_ts,
+        )
 
-            # ------------------------------------------
-            # obter ticks
-            # ------------------------------------------
+        if rows is None or len(rows) == 0:
+            return []
 
-            ticks = mt5.copy_ticks_range(
-                self.symbol,
-                inicio,
-                agora,
-                mt5.COPY_TICKS_ALL,
-            )
+        return rows[-max_ticks:]
 
-            if ticks is None or len(ticks) == 0:
-                return []
+    # ======================================================
+    # PATH RECONSTRUCTION
+    # ======================================================
 
-            if len(ticks) > max_ticks:
-                ticks = ticks[-max_ticks:]
+    def _reconstruir_path(self, rate):
 
-            return ticks
+        o = float(rate["open"])
+        h = float(rate["high"])
+        l = float(rate["low"])
+        c = float(rate["close"])
+
+        if c >= o:
+            return [o, l, h, c]
+
+        return [o, h, l, c]
 
     # ======================================================
     # RENKO CANDLE
     # ======================================================
 
-    def construir_renko(self, rates, modo="simples") -> List[RenkoBrick]:
-        """
-        Constrói blocos Renko a partir de candles.
-        """
+    def construir_renko(self, rates, modo="simples") -> List[Brick]:
 
         if rates is None or len(rates) < 2:
             return []
 
-        bricks: List[RenkoBrick] = []
+        bricks: List[Brick] = []
 
         last_price = float(rates[0]["open"])
 
         for rate in rates[1:]:
 
-            high = float(rate["high"])
-            low = float(rate["low"])
+            path = self._reconstruir_path(rate)
 
-            count = 0
+            for price in path:
 
-            while high - last_price >= self.brick_size:
+                while price - last_price >= self.brick_size:
 
-                novo = last_price + self.brick_size
+                    novo = last_price + self.brick_size
 
-                bricks.append(RenkoBrick("up", last_price, novo))
+                    bricks.append(
+                        Brick("up", last_price, novo)
+                    )
 
-                last_price = novo
+                    last_price = novo
 
-                count += 1
+                while last_price - price >= self.brick_size:
 
-                if count > self.MAX_BRICKS_PER_TICK:
-                    break
+                    novo = last_price - self.brick_size
 
-            count = 0
+                    bricks.append(
+                        Brick("down", last_price, novo)
+                    )
 
-            while last_price - low >= self.brick_size:
-
-                novo = last_price - self.brick_size
-
-                bricks.append(RenkoBrick("down", last_price, novo))
-
-                last_price = novo
-
-                count += 1
-
-                if count > self.MAX_BRICKS_PER_TICK:
-                    break
+                    last_price = novo
 
         return bricks
 
     # ======================================================
-    # RENKO TICKS
+    # RENKO TICK MODE
     # ======================================================
 
-    def construir_renko_ticks(self, ticks) -> RenkoResult:
-        """
-        Constrói Renko baseado em ticks.
-        """
+    def construir_renko_ticks(self, ticks) -> RenkoTickResult:
 
         if ticks is None or len(ticks) < 2:
-            return RenkoResult([], None)
+            return RenkoTickResult([], None)
 
-        bricks: List[RenkoBrick] = []
+        bricks: List[Brick] = []
 
-        last_price = float(ticks[0]["last"])
+        last_price = float(ticks[0][3])
 
         for tick in ticks[1:]:
 
-            price = float(tick["last"])
-
-            count = 0
+            price = float(tick[3])
 
             while price - last_price >= self.brick_size:
 
                 novo = last_price + self.brick_size
 
-                bricks.append(RenkoBrick("up", last_price, novo))
+                bricks.append(
+                    Brick("up", last_price, novo)
+                )
 
                 last_price = novo
-
-                count += 1
-
-                if count > self.MAX_BRICKS_PER_TICK:
-                    break
-
-            count = 0
 
             while last_price - price >= self.brick_size:
 
                 novo = last_price - self.brick_size
 
-                bricks.append(RenkoBrick("down", last_price, novo))
+                bricks.append(
+                    Brick("down", last_price, novo)
+                )
 
                 last_price = novo
 
-                count += 1
+        # brick em formação
 
-                if count > self.MAX_BRICKS_PER_TICK:
-                    break
-
-        # -----------------------------------------
-        # Brick em formação
-        # -----------------------------------------
-
-        ultimo_preco = float(ticks[-1]["last"])
+        ultimo_preco = float(ticks[-1][3])
 
         diferenca = ultimo_preco - last_price
 
         em_formacao = None
 
-        if abs(diferenca) < self.brick_size and abs(diferenca) > 0:
+        if abs(diferenca) > 0:
 
             direcao = "up" if diferenca > 0 else "down"
 
-            em_formacao = RenkoBrick(
+            em_formacao = Brick(
                 direction=direcao,
                 open=last_price,
                 close=ultimo_preco,
             )
 
-        return RenkoResult(
+        return RenkoTickResult(
             confirmados=bricks,
             em_formacao=em_formacao,
         )
