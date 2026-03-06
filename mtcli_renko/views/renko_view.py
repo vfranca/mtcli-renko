@@ -100,12 +100,12 @@ def exibir_renko(resultado, numerar=False):
 
     Parameters
     ----------
-    resultado : list | namedtuple
+    resultado : list | RenkoTickResult
         Resultado retornado pelo RenkoModel.
 
         Pode ser:
         - lista simples de bricks
-        - estrutura contendo `confirmados` (modo tick)
+        - estrutura contendo `confirmados` e `em_formacao` (modo tick)
 
     numerar : bool
         Se True, adiciona numeração sequencial aos blocos.
@@ -115,11 +115,14 @@ def exibir_renko(resultado, numerar=False):
         click.echo("Nenhum bloco Renko gerado.")
         return
 
-    # compatível com retorno de ticks
+    em_formacao = None
+
+    # compatível com retorno candle e tick
     if isinstance(resultado, list):
         bricks = resultado
     else:
         bricks = resultado.confirmados
+        em_formacao = resultado.em_formacao
 
     click.echo("=== GRAFICO RENKO ===")
     click.echo(f"Total de blocos: {len(bricks)}")
@@ -150,12 +153,11 @@ def exibir_renko(resultado, numerar=False):
         click.echo()
 
     # ------------------------------------------------------
-    # BLOCOS
+    # BLOCOS CONFIRMADOS
     # ------------------------------------------------------
 
     for i, brick in enumerate(bricks, start=1):
 
-        # símbolo configurável
         if brick.direction == "up":
             simbolo = BRICK_UP
         else:
@@ -173,5 +175,26 @@ def exibir_renko(resultado, numerar=False):
                 f"{brick.open:.{DIGITS}f} "
                 f"{brick.close:.{DIGITS}f}"
             )
+
+        click.echo(linha)
+
+    # ------------------------------------------------------
+    # BLOCO EM FORMAÇÃO (modo híbrido)
+    # ------------------------------------------------------
+
+    if em_formacao:
+
+        click.echo()
+
+        if em_formacao.direction == "up":
+            simbolo = BRICK_UP
+        else:
+            simbolo = BRICK_DOWN
+
+        linha = (
+            f"FORMANDO {simbolo} "
+            f"{em_formacao.open:.{DIGITS}f} "
+            f"{em_formacao.close:.{DIGITS}f}"
+        )
 
         click.echo(linha)

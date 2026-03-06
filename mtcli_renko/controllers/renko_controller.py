@@ -83,13 +83,13 @@ class RenkoController:
                 ancorar_abertura=self.ancorar_abertura,
             )
 
-            if ticks is None or len(ticks) == 0:
+            if not ticks:
                 log.warning("Nenhum tick retornado.")
                 return []
 
             resultado = self.model.construir_renko_ticks(ticks)
 
-            bricks = resultado.confirmados
+            bricks = list(resultado.confirmados)
 
         # ======================================================
         # CANDLE MODE
@@ -103,7 +103,7 @@ class RenkoController:
                 ancorar_abertura=self.ancorar_abertura,
             )
 
-            if rates is None or len(rates) == 0:
+            if not rates:
                 log.warning("Nenhum candle retornado.")
                 return []
 
@@ -136,9 +136,11 @@ class RenkoController:
 
         if self.data_mode == "tick":
 
+            # estrutural → apenas confirmados
             if self.tick_style == "estrutural":
                 return bricks
 
+            # agressivo → confirmados + formação como confirmado
             if self.tick_style == "agressivo":
 
                 if resultado.em_formacao:
@@ -146,7 +148,7 @@ class RenkoController:
 
                 return bricks
 
-            # híbrido
+            # híbrido → confirmados + bloco separado
             resultado = resultado._replace(confirmados=bricks)
 
             return resultado

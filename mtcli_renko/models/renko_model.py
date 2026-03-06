@@ -1,14 +1,14 @@
 """
 RenkoModel profissional.
 
-✔ Candle mode determinístico
-✔ Tick mode híbrido (confirmados + em formação)
-✔ Ancoragem correta na abertura da B3
-✔ Ajuste UTC da corretora
-✔ Margem de segurança na abertura
-✔ Reconstrução de caminho do candle (path reconstruction)
-✔ Compatível com controller atual
-✔ Funciona mesmo com mercado fechado
+Candle mode determinístico
+Tick mode híbrido (confirmados + em formação)
+Ancoragem correta na abertura da B3
+Ajuste UTC da corretora
+Margem de segurança na abertura
+Reconstrução de caminho do candle (path reconstruction)
+Compatível com controller atual
+Funciona mesmo com mercado fechado
 """
 
 from dataclasses import dataclass
