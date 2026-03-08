@@ -416,14 +416,14 @@ pyyaml = ">=5.1"
 
 [[package]]
 name = "mtcli"
-version = "3.7.1"
+version = "3.8.0.dev0"
 description = "Aplicativo CLI para exibir gráficos do MetaTrader 5 screen reader friendly"
 optional = false
 python-versions = "<3.14.0,>=3.10"
 groups = ["main"]
 files = [
-    {file = "mtcli-3.7.1-py3-none-any.whl", hash = "sha256:bd2262d9208fd3ea5409acde04d3ea706b05bfe64df288217298abf116fd1ca5"},
-    {file = "mtcli-3.7.1.tar.gz", hash = "sha256:b5b4b83680d199336d71de65433f9a124c5785b8034f3a9189d048d2f0e25534"},
+    {file = "mtcli-3.8.0.dev0-py3-none-any.whl", hash = "sha256:8553d9c2c68df996b9f4ce3dff3ffe341b59ca2cb0c1acda865797707abf00b1"},
+    {file = "mtcli-3.8.0.dev0.tar.gz", hash = "sha256:5a55e4d419925ef4e3f68434be965c2369704cf49e707f07be548f344d383508"},
 ]
 
 [package.dependencies]
@@ -527,14 +527,14 @@ tests = ["pytest (>=9)", "typing-extensions (>=4.15)"]
 
 [[package]]
 name = "platformdirs"
-version = "4.9.2"
+version = "4.9.4"
 description = "A small Python package for determining appropriate platform-specific dirs, e.g. a `user data dir`."
 optional = false
 python-versions = ">=3.10"
 groups = ["docs"]
 files = [
-    {file = "platformdirs-4.9.2-py3-none-any.whl", hash = "sha256:9170634f126f8efdae22fb58ae8a0eaa86f38365bc57897a6c4f781d1f5875bd"},
-    {file = "platformdirs-4.9.2.tar.gz", hash = "sha256:9a33809944b9db043ad67ca0db94b14bf452cc6aeaac46a88ea55b26e2e9d291"},
+    {file = "platformdirs-4.9.4-py3-none-any.whl", hash = "sha256:68a9a4619a666ea6439f2ff250c12a853cd1cbd5158d258bd824a7df6be2f868"},
+    {file = "platformdirs-4.9.4.tar.gz", hash = "sha256:1ec356301b7dc906d83f371c8f487070e99d3ccf9e501686456394622a01a934"},
 ]
 
 [[package]]
@@ -920,4 +920,4 @@ watchmedo = ["PyYAML (>=3.10)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "f216a33f666a2b67ab06c2161b44636a792788e5fc2fe97153fbfbea0a4070d6"
+content-hash = "866491a60349fcbbe51f8961a7aa45c26673f9d6d4fdce562349427bd15b2974"
