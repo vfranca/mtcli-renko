@@ -58,6 +58,9 @@ class RenkoModel:
     # ======================================================
 
     def _session_start_timestamp(self, data):
+        """
+        Retorna timestamp da abertura da sessão em milissegundos.
+        """
 
         abertura_b3 = datetime.combine(
             data,
@@ -68,7 +71,7 @@ class RenkoModel:
 
         abertura_utc += timedelta(seconds=SESSION_OPEN_OFFSET_SECONDS)
 
-        return int(abertura_utc.timestamp())
+        return int(abertura_utc.timestamp() * 1000)
 
     # ======================================================
     # RATES (CANDLE MODE)
@@ -101,7 +104,7 @@ class RenkoModel:
 
         ultimo_dia = datetime.utcfromtimestamp(ultimo_ts).date()
 
-        abertura_ts = self._session_start_timestamp(ultimo_dia)
+        abertura_ts = int(self._session_start_timestamp(ultimo_dia) / 1000)
 
         filtrados = []
 
@@ -120,42 +123,37 @@ class RenkoModel:
 
     def obter_ticks(self, max_ticks=5000, ancorar_abertura=False):
 
-        last_time = self.repo._get_last_tick_time(self.symbol)
+        last_time = self.repo._get_last_tick_msc(self.symbol)
 
         if last_time is None:
 
             self.repo.sync(self.symbol, days_back=3)
-            last_time = self.repo._get_last_tick_time(self.symbol)
 
         else:
 
             self.repo.sync(self.symbol)
 
-        if last_time is None:
-            return []
-
-        end_ts = int(datetime.utcnow().timestamp())
-
-        if ancorar_abertura:
-
-            data = datetime.utcfromtimestamp(last_time).date()
-
-            start_ts = self._session_start_timestamp(data)
-
-        else:
-
-            start_ts = 0
-
-        rows = self.repo.get_ticks_between(
+        ticks = self.repo.get_last_ticks(
             self.symbol,
-            start_ts,
-            end_ts,
+            max_ticks,
         )
 
-        if rows is None or len(rows) == 0:
+        if ticks is None or len(ticks) == 0:
             return []
 
-        return rows[-max_ticks:]
+        if not ancorar_abertura:
+            return ticks
+
+        primeiro_tick = next((t for t in ticks if t[0] is not None), None)
+
+        if primeiro_tick is None:
+            return []
+
+        data = datetime.utcfromtimestamp(primeiro_tick[0] / 1000).date()
+
+        start_ts = self._session_start_timestamp(data)
+
+        return [t for t in ticks if t[0] is not None and t[0] >= start_ts]
 
     # ======================================================
     # PATH RECONSTRUCTION
