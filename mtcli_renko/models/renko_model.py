@@ -122,38 +122,61 @@ class RenkoModel:
     # ======================================================
 
     def obter_ticks(self, max_ticks=5000, ancorar_abertura=False):
+        """
+        Obtém ticks do banco SQLite.
+
+        Sem ancoragem:
+            retorna os últimos N ticks.
+
+        Com ancoragem (--ancorar-abertura):
+            retorna os ticks da sessão do último pregão
+            disponível no banco.
+        """
 
         last_time = self.repo._get_last_tick_msc(self.symbol)
 
         if last_time is None:
+            raise RuntimeError(
+                "Nenhum tick disponível no banco.\n"
+                "Execute primeiro:\n"
+                "mt ticks SYMBOL"
+            )
 
-            self.repo.sync(self.symbol, days_back=3)
+        # ----------------------------
+        # modo normal (últimos ticks)
+        # ----------------------------
 
-        else:
+        if not ancorar_abertura:
 
-            self.repo.sync(self.symbol)
+            ticks = self.repo.get_last_ticks(
+                self.symbol,
+                max_ticks,
+            )
 
-        ticks = self.repo.get_last_ticks(
+            if ticks is None or len(ticks) == 0:
+                return []
+
+            return ticks
+
+        # -----------------------------------
+        # modo ancorado na abertura da sessão
+        # -----------------------------------
+
+        # usa o último tick do banco para determinar a sessão
+        data = datetime.utcfromtimestamp(last_time / 1000).date()
+
+        start_ts = self._session_start_timestamp(data)
+
+        ticks = self.repo.get_ticks_between(
             self.symbol,
-            max_ticks,
+            start_ts,
+            last_time,
         )
 
         if ticks is None or len(ticks) == 0:
             return []
 
-        if not ancorar_abertura:
-            return ticks
-
-        primeiro_tick = next((t for t in ticks if t[0] is not None), None)
-
-        if primeiro_tick is None:
-            return []
-
-        data = datetime.utcfromtimestamp(primeiro_tick[0] / 1000).date()
-
-        start_ts = self._session_start_timestamp(data)
-
-        return [t for t in ticks if t[0] is not None and t[0] >= start_ts]
+        return ticks
 
     # ======================================================
     # PATH RECONSTRUCTION
