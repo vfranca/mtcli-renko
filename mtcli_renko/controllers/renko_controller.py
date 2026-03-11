@@ -87,7 +87,7 @@ class RenkoController:
                 log.warning("Nenhum tick retornado.")
                 return []
 
-            resultado = self.model.construir_renko_ticks(ticks)
+            resultado = self.model.construir_renko_ticks(ticks, modo=self.modo)
 
             bricks = list(resultado.confirmados)
 
