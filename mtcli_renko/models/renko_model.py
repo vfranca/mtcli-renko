@@ -206,6 +206,7 @@ class RenkoModel:
         bricks: List[Brick] = []
 
         last_price = float(rates[0]["open"])
+        last_direction: Optional[str] = None
 
         for rate in rates[1:]:
 
@@ -213,7 +214,19 @@ class RenkoModel:
 
             for price in path:
 
+                # =============================
+                # movimento de alta
+                # =============================
+
                 while price - last_price >= self.brick_size:
+
+                    # regra reversão clássica
+                    if modo == "classico" and last_direction == "down":
+
+                        if price - last_price < self.brick_size * 2:
+                            break
+
+                        last_price += self.brick_size
 
                     novo = last_price + self.brick_size
 
@@ -222,8 +235,20 @@ class RenkoModel:
                     )
 
                     last_price = novo
+                    last_direction = "up"
+
+                # =============================
+                # movimento de baixa
+                # =============================
 
                 while last_price - price >= self.brick_size:
+
+                    if modo == "classico" and last_direction == "up":
+
+                        if last_price - price < self.brick_size * 2:
+                            break
+
+                        last_price -= self.brick_size
 
                     novo = last_price - self.brick_size
 
@@ -232,6 +257,7 @@ class RenkoModel:
                     )
 
                     last_price = novo
+                    last_direction = "down"
 
         return bricks
 
@@ -239,7 +265,7 @@ class RenkoModel:
     # RENKO TICK MODE
     # ======================================================
 
-    def construir_renko_ticks(self, ticks) -> RenkoTickResult:
+    def construir_renko_ticks(self, ticks, modo="simples") -> RenkoTickResult:
 
         if ticks is None or len(ticks) < 2:
             return RenkoTickResult([], None)
@@ -247,12 +273,24 @@ class RenkoModel:
         bricks: List[Brick] = []
 
         last_price = float(ticks[0][3])
+        last_direction: Optional[str] = None
 
         for tick in ticks[1:]:
 
             price = float(tick[3])
 
+            # =============================
+            # movimento de alta
+            # =============================
+
             while price - last_price >= self.brick_size:
+
+                if modo == "classico" and last_direction == "down":
+
+                    if price - last_price < self.brick_size * 2:
+                        break
+
+                    last_price += self.brick_size
 
                 novo = last_price + self.brick_size
 
@@ -261,8 +299,20 @@ class RenkoModel:
                 )
 
                 last_price = novo
+                last_direction = "up"
+
+            # =============================
+            # movimento de baixa
+            # =============================
 
             while last_price - price >= self.brick_size:
+
+                if modo == "classico" and last_direction == "up":
+
+                    if last_price - price < self.brick_size * 2:
+                        break
+
+                    last_price -= self.brick_size
 
                 novo = last_price - self.brick_size
 
@@ -271,8 +321,11 @@ class RenkoModel:
                 )
 
                 last_price = novo
+                last_direction = "down"
 
+        # =================================
         # brick em formação
+        # =================================
 
         ultimo_preco = float(ticks[-1][3])
 
