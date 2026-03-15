@@ -1,14 +1,16 @@
 """
 RenkoModel profissional.
 
-Candle mode determinístico
-Tick mode híbrido (confirmados + em formação)
-Ancoragem correta na abertura da B3
-Ajuste UTC da corretora
-Margem de segurança na abertura
-Reconstrução de caminho do candle (path reconstruction)
-Compatível com controller atual
-Funciona mesmo com mercado fechado
+Versão estável para mtcli.
+
+Características:
+
+• determinístico
+• compatível com SQLite
+• funciona com pregão fechado
+• suporte a ancoragem na abertura
+• reconstrução de path do candle
+• modo tick híbrido (confirmados + formação)
 """
 
 from dataclasses import dataclass
@@ -20,7 +22,9 @@ import MetaTrader5 as mt5
 from mtcli.mt5_context import mt5_conexao
 from mtcli.logger import setup_logger
 from mtcli.marketdata.tick_repository import TickRepository
+
 from ..conf import SESSION_OPEN, SESSION_OPEN_OFFSET_SECONDS, BROKER_UTC_OFFSET
+
 
 log = setup_logger(__name__)
 
@@ -101,7 +105,6 @@ class RenkoModel:
             return rates
 
         ultimo_ts = int(rates[-1]["time"])
-
         ultimo_dia = datetime.utcfromtimestamp(ultimo_ts).date()
 
         abertura_ts = int(self._session_start_timestamp(ultimo_dia) / 1000)
@@ -118,20 +121,10 @@ class RenkoModel:
         return filtrados
 
     # ======================================================
-    # TICKS (BANCO + MT5)
+    # TICKS
     # ======================================================
 
     def obter_ticks(self, max_ticks=5000, ancorar_abertura=False):
-        """
-        Obtém ticks do banco SQLite.
-
-        Sem ancoragem:
-            retorna os últimos N ticks.
-
-        Com ancoragem (--ancorar-abertura):
-            retorna os ticks da sessão do último pregão
-            disponível no banco.
-        """
 
         last_time = self.repo._get_last_tick_msc(self.symbol)
 
@@ -139,12 +132,8 @@ class RenkoModel:
             raise RuntimeError(
                 "Nenhum tick disponível no banco.\n"
                 "Execute primeiro:\n"
-                "mt ticks SYMBOL"
+                "mt fill SYMBOL"
             )
-
-        # ----------------------------
-        # modo normal (últimos ticks)
-        # ----------------------------
 
         if not ancorar_abertura:
 
@@ -153,16 +142,8 @@ class RenkoModel:
                 max_ticks,
             )
 
-            if ticks is None or len(ticks) == 0:
-                return []
+            return ticks or []
 
-            return ticks
-
-        # -----------------------------------
-        # modo ancorado na abertura da sessão
-        # -----------------------------------
-
-        # usa o último tick do banco para determinar a sessão
         data = datetime.utcfromtimestamp(last_time / 1000).date()
 
         start_ts = self._session_start_timestamp(data)
@@ -173,10 +154,7 @@ class RenkoModel:
             last_time,
         )
 
-        if ticks is None or len(ticks) == 0:
-            return []
-
-        return ticks
+        return ticks or []
 
     # ======================================================
     # PATH RECONSTRUCTION
@@ -214,18 +192,11 @@ class RenkoModel:
 
             for price in path:
 
-                # =============================
-                # movimento de alta
-                # =============================
-
                 while price - last_price >= self.brick_size:
 
-                    # regra reversão clássica
                     if modo == "classico" and last_direction == "down":
-
                         if price - last_price < self.brick_size * 2:
                             break
-
                         last_price += self.brick_size
 
                     novo = last_price + self.brick_size
@@ -237,17 +208,11 @@ class RenkoModel:
                     last_price = novo
                     last_direction = "up"
 
-                # =============================
-                # movimento de baixa
-                # =============================
-
                 while last_price - price >= self.brick_size:
 
                     if modo == "classico" and last_direction == "up":
-
                         if last_price - price < self.brick_size * 2:
                             break
-
                         last_price -= self.brick_size
 
                     novo = last_price - self.brick_size
@@ -279,10 +244,6 @@ class RenkoModel:
 
             price = float(tick[3])
 
-            # =============================
-            # movimento de alta
-            # =============================
-
             while price - last_price >= self.brick_size:
 
                 if modo == "classico" and last_direction == "down":
@@ -300,10 +261,6 @@ class RenkoModel:
 
                 last_price = novo
                 last_direction = "up"
-
-            # =============================
-            # movimento de baixa
-            # =============================
 
             while last_price - price >= self.brick_size:
 
@@ -323,9 +280,7 @@ class RenkoModel:
                 last_price = novo
                 last_direction = "down"
 
-        # =================================
         # brick em formação
-        # =================================
 
         ultimo_preco = float(ticks[-1][3])
 

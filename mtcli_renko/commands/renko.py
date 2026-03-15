@@ -8,6 +8,7 @@ from ..controllers.renko_controller import RenkoController
 from ..views.renko_view import exibir_renko
 from mtcli.domain.timeframe import Timeframe
 from mtcli.logger import setup_logger
+
 from ..conf import (
     SYMBOL,
     BRICK,
@@ -17,8 +18,9 @@ from ..conf import (
     MAX_TICKS,
     TICK_STYLE,
     MODO,
-    LIMIT_BRICKS
+    LIMIT_BRICKS,
 )
+
 from ..utils.renko_stats import exibir_stats
 from ..utils.renko_stats import exibir_levels
 from ..utils.renko_stats import exibir_trend
@@ -34,36 +36,46 @@ log = setup_logger(__name__)
 @click.option("--timeframe", "-t", default=PERIOD, show_default=True)
 @click.option("--bars", "-n", default=BARS, show_default=True, type=int)
 @click.option("--numerar/--no-numerar", default=False, show_default=True)
+
 @click.option(
-    "--modo", "-m",
+    "--modo",
+    "-m",
     type=click.Choice(["simples", "classico"], case_sensitive=False),
     default=MODO,
     show_default=True,
-    help="Modo de calculo dos blocos"
 )
-@click.option("--ancorar-abertura", "-a", is_flag=True, show_default=True, help="Ancora na abertura do pregão")
+
+@click.option("--ancorar-abertura", "-a", is_flag=True)
+
 @click.option(
-    "--data-mode", "-dm",
+    "--data-mode",
+    "-dm",
     type=click.Choice(["candle", "tick"]),
     default=DATA_MODE,
     show_default=True,
-    help="Dados baseados em candles ou ticks"
 )
-@click.option("--max-ticks", "-mt", default=MAX_TICKS, type=int, show_default=True, help="Maximo de ticks usados no renko baseado em ticks")
+
+@click.option("--max-ticks", "-mt", default=MAX_TICKS, type=int, show_default=True)
+
 @click.option(
-    "--tick-style", "-ts",
+    "--tick-style",
+    "-ts",
     type=click.Choice(["estrutural", "hibrido", "agressivo"]),
     default=TICK_STYLE,
     show_default=True,
-    help="Estilo de calculo dos blocos baseado em ticks"
 )
-@click.option("--limit-bricks", "-lb", type=int, default=LIMIT_BRICKS, show_default=True, help="Limite de blocos")
-@click.option("--price-min", "-mn", type=float, default=None, show_default=True, help="Preço mínimo para filtrar blocos")
-@click.option("--price-max", "-mx", type=float, default=None, show_default=True, help="Preço máximo para filtrar blocos")
-@click.option("--reverse", "-r", is_flag=True, show_default=True, help="Reverte a órdem dos blocos")
-@click.option("--stats", "-st", is_flag=True, help="Exibe estatísticas do Renko")
-@click.option("--levels", "-l", is_flag=True, help="Exibe níveis importantes do Renko")
-@click.option("--trend", "-tr", is_flag=True, help="Exibe direção atual do Renko")
+
+@click.option("--limit-bricks", "-lb", type=int, default=LIMIT_BRICKS, show_default=True)
+
+@click.option("--price-min", "-mn", type=float, default=None)
+@click.option("--price-max", "-mx", type=float, default=None)
+
+@click.option("--reverse", "-r", is_flag=True)
+
+@click.option("--stats", "-st", is_flag=True)
+@click.option("--levels", "-l", is_flag=True)
+@click.option("--trend", "-tr", is_flag=True)
+
 def renko(
     symbol,
     brick,
@@ -87,6 +99,8 @@ def renko(
     Gera gráfico Renko no terminal.
     """
 
+    log.info("Executando Renko (%s)", symbol)
+
     try:
         tf_enum = Timeframe.from_string(timeframe)
     except ValueError as e:
@@ -109,6 +123,10 @@ def renko(
     )
 
     resultado = controller.executar()
+
+    if not resultado:
+        click.echo("Nenhum resultado gerado.")
+        return
 
     if stats:
         exibir_stats(resultado)

@@ -11,6 +11,7 @@ Responsável por:
 from ..models.renko_model import RenkoModel
 from mtcli.logger import setup_logger
 
+
 log = setup_logger(__name__)
 
 
@@ -18,19 +19,46 @@ class RenkoController:
     """
     Controller principal do Renko.
 
-    :param symbol: ativo
-    :param brick_size: tamanho do brick
-    :param timeframe: timeframe MT5
-    :param quantidade: número de candles
-    :param modo: simples | classico
-    :param ancorar_abertura: ancora sessão
-    :param data_mode: candle | tick
-    :param max_ticks: limite ticks
-    :param tick_style: estrutural | hibrido | agressivo
-    :param price_min: filtro preço mínimo
-    :param price_max: filtro preço máximo
-    :param limit_bricks: limite de blocos
-    :param reverse: inverter ordem
+    Parameters
+    ----------
+    symbol : str
+        Ativo (ex: WINJ26)
+
+    brick_size : float
+        Tamanho do brick
+
+    timeframe : int
+        Timeframe MT5
+
+    quantidade : int
+        Número de candles
+
+    modo : str
+        simples | classico
+
+    ancorar_abertura : bool
+        Ancora sessão na abertura
+
+    data_mode : str
+        candle | tick
+
+    max_ticks : int
+        Número máximo de ticks utilizados
+
+    tick_style : str
+        estrutural | hibrido | agressivo
+
+    price_min : float
+        Filtro mínimo de preço
+
+    price_max : float
+        Filtro máximo de preço
+
+    limit_bricks : int
+        Limite de blocos retornados
+
+    reverse : bool
+        Inverte ordem dos blocos
     """
 
     def __init__(
@@ -50,6 +78,7 @@ class RenkoController:
         reverse=False,
     ):
 
+        self.symbol = symbol
         self.model = RenkoModel(symbol, brick_size)
 
         self.timeframe = timeframe
@@ -71,6 +100,13 @@ class RenkoController:
     # ==========================================================
 
     def executar(self):
+        """
+        Executa o cálculo do Renko.
+
+        Returns
+        -------
+        list | RenkoTickResult
+        """
 
         # ======================================================
         # TICK MODE
@@ -78,16 +114,28 @@ class RenkoController:
 
         if self.data_mode == "tick":
 
+            log.info(
+                "Renko TICK | symbol=%s max_ticks=%s ancorar_abertura=%s",
+                self.symbol,
+                self.max_ticks,
+                self.ancorar_abertura,
+            )
+
             ticks = self.model.obter_ticks(
                 max_ticks=self.max_ticks,
                 ancorar_abertura=self.ancorar_abertura,
             )
 
             if not ticks:
-                log.warning("Nenhum tick retornado.")
+                log.warning("Nenhum tick encontrado no banco.")
                 return []
 
-            resultado = self.model.construir_renko_ticks(ticks, modo=self.modo)
+            log.debug("Ticks carregados: %s", len(ticks))
+
+            resultado = self.model.construir_renko_ticks(
+                ticks,
+                modo=self.modo,
+            )
 
             bricks = list(resultado.confirmados)
 
@@ -96,6 +144,14 @@ class RenkoController:
         # ======================================================
 
         else:
+
+            log.info(
+                "Renko CANDLE | symbol=%s timeframe=%s bars=%s ancorar_abertura=%s",
+                self.symbol,
+                self.timeframe,
+                self.quantidade,
+                self.ancorar_abertura,
+            )
 
             rates = self.model.obter_rates(
                 self.timeframe,
@@ -106,6 +162,8 @@ class RenkoController:
             if not rates:
                 log.warning("Nenhum candle retornado.")
                 return []
+
+            log.debug("Candles carregados: %s", len(rates))
 
             bricks = self.model.construir_renko(
                 rates,
@@ -119,15 +177,33 @@ class RenkoController:
         # ======================================================
 
         if self.price_min is not None:
-            bricks = [b for b in bricks if b.close >= self.price_min]
+
+            log.debug("Aplicando filtro price_min=%s", self.price_min)
+
+            bricks = [
+                b for b in bricks
+                if b.close >= self.price_min
+            ]
 
         if self.price_max is not None:
-            bricks = [b for b in bricks if b.close <= self.price_max]
+
+            log.debug("Aplicando filtro price_max=%s", self.price_max)
+
+            bricks = [
+                b for b in bricks
+                if b.close <= self.price_max
+            ]
 
         if self.reverse:
+
+            log.debug("Invertendo ordem dos bricks")
+
             bricks = list(reversed(bricks))
 
         if self.limit_bricks:
+
+            log.debug("Limitando bricks a %s", self.limit_bricks)
+
             bricks = bricks[-self.limit_bricks:]
 
         # ======================================================
@@ -136,19 +212,35 @@ class RenkoController:
 
         if self.data_mode == "tick":
 
+            # ----------------------------------------------
             # estrutural → apenas confirmados
+            # ----------------------------------------------
+
             if self.tick_style == "estrutural":
+
+                log.debug("Tick style: estrutural")
+
                 return bricks
 
-            # agressivo → confirmados + formação como confirmado
+            # ----------------------------------------------
+            # agressivo → inclui bloco em formação
+            # ----------------------------------------------
+
             if self.tick_style == "agressivo":
+
+                log.debug("Tick style: agressivo")
 
                 if resultado.em_formacao:
                     bricks.append(resultado.em_formacao)
 
                 return bricks
 
-            # híbrido → confirmados + bloco separado
+            # ----------------------------------------------
+            # híbrido → confirmados + formação separado
+            # ----------------------------------------------
+
+            log.debug("Tick style: hibrido")
+
             resultado = resultado._replace(confirmados=bricks)
 
             return resultado
