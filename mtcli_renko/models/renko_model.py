@@ -19,7 +19,7 @@ import MetaTrader5 as mt5
 
 from mtcli.mt5_context import mt5_conexao
 from mtcli.logger import setup_logger
-from mtcli.marketdata.tick_repository import TickRepository
+from ..marketdata.tick_repository import TickRepository
 from ..conf import SESSION_OPEN, SESSION_OPEN_OFFSET_SECONDS, BROKER_UTC_OFFSET
 
 log = setup_logger(__name__)
