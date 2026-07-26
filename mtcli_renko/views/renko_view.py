@@ -19,9 +19,9 @@ Os símbolos utilizados são definidos em `conf.py`:
 
 Exemplo de saída:
 
-    ▲ 128400 128460
-    ▲ 128460 128520
-    ▼ 128520 128460
+    up 128400 128460
+    up 128460 128520
+    down 128520 128460
 """
 
 import click
@@ -156,6 +156,8 @@ def exibir_renko(resultado, numerar=False):
     # BLOCOS CONFIRMADOS
     # ------------------------------------------------------
 
+    click.echo("Direcao Volume Abertura Fechamento")
+
     for i, brick in enumerate(bricks, start=1):
 
         if brick.direction == "up":
@@ -166,12 +168,14 @@ def exibir_renko(resultado, numerar=False):
         if numerar:
             linha = (
                 f"{i} {simbolo} "
+                f"{brick.volume:.0f} "
                 f"{brick.open:.{DIGITS}f} "
                 f"{brick.close:.{DIGITS}f}"
             )
         else:
             linha = (
                 f"{simbolo} "
+                f"{brick.volume:.0f} "
                 f"{brick.open:.{DIGITS}f} "
                 f"{brick.close:.{DIGITS}f}"
             )
@@ -193,6 +197,7 @@ def exibir_renko(resultado, numerar=False):
 
         linha = (
             f"FORMANDO {simbolo} "
+            f"{em_formacao.volume:.0f} "
             f"{em_formacao.open:.{DIGITS}f} "
             f"{em_formacao.close:.{DIGITS}f}"
         )

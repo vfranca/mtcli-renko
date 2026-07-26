@@ -34,6 +34,8 @@ class Brick:
     direction: str
     open: float
     close: float
+    volume: float = 0
+    ticks: int = 0
 
 
 class RenkoTickResult(NamedTuple):
@@ -253,10 +255,16 @@ class RenkoModel:
 
         last_price = float(ticks[0][3])
         last_direction: Optional[str] = None
+        volume_acumulado = 0
+        ticks_acumulados = 0
 
         for tick in ticks[1:]:
 
             price = float(tick[3])
+            volume = float(tick[4])
+
+            volume_acumulado += volume
+            ticks_acumulados += 1
 
             # =============================
             # movimento de alta
@@ -274,9 +282,17 @@ class RenkoModel:
                 novo = last_price + self.brick_size
 
                 bricks.append(
-                    Brick("up", last_price, novo)
+                    Brick(
+                        direction="up",
+                        open=last_price,
+                        close=novo,
+                        volume=volume_acumulado,
+                        ticks=ticks_acumulados,
+                    )
                 )
 
+                volume_acumulado = 0
+                ticks_acumulados = 0
                 last_price = novo
                 last_direction = "up"
 
@@ -296,9 +312,17 @@ class RenkoModel:
                 novo = last_price - self.brick_size
 
                 bricks.append(
-                    Brick("down", last_price, novo)
+                    Brick(
+                        direction="down",
+                        open=last_price,
+                        close=novo,
+                        volume=volume_acumulado,
+                        ticks=ticks_acumulados,
+                    )
                 )
 
+                volume_acumulado = 0
+                ticks_acumulados = 0
                 last_price = novo
                 last_direction = "down"
 
@@ -320,6 +344,8 @@ class RenkoModel:
                 direction=direcao,
                 open=last_price,
                 close=ultimo_preco,
+                volume=volume_acumulado,
+                ticks=ticks_acumulados,
             )
 
         return RenkoTickResult(
