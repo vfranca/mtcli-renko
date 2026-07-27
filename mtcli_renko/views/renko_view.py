@@ -156,7 +156,7 @@ def exibir_renko(resultado, numerar=False):
     # BLOCOS CONFIRMADOS
     # ------------------------------------------------------
 
-    click.echo("Direcao Volume Abertura Fechamento")
+    click.echo("Direcao Abertura Fechamento Volume")
 
     for i, brick in enumerate(bricks, start=1):
 
@@ -168,16 +168,16 @@ def exibir_renko(resultado, numerar=False):
         if numerar:
             linha = (
                 f"{i} {simbolo} "
-                f"{brick.volume:.0f} "
                 f"{brick.open:.{DIGITS}f} "
-                f"{brick.close:.{DIGITS}f}"
+                f"{brick.close:.{DIGITS}f} "
+                f"{brick.volume:.0f}"
             )
         else:
             linha = (
                 f"{simbolo} "
-                f"{brick.volume:.0f} "
                 f"{brick.open:.{DIGITS}f} "
-                f"{brick.close:.{DIGITS}f}"
+                f"{brick.close:.{DIGITS}f} "
+                f"{brick.volume:.0f}"
             )
 
         click.echo(linha)
@@ -197,9 +197,9 @@ def exibir_renko(resultado, numerar=False):
 
         linha = (
             f"FORMANDO {simbolo} "
-            f"{em_formacao.volume:.0f} "
             f"{em_formacao.open:.{DIGITS}f} "
-            f"{em_formacao.close:.{DIGITS}f}"
+            f"{em_formacao.close:.{DIGITS}f} "
+            f"{em_formacao.volume:.0f}"
         )
 
         click.echo(linha)
